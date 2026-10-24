@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "project": {"id": "example-app", "name": "Example application"},
+  "milestones": [
+    {"id": "M1", "title": "Application foundation"},
+    {"id": "M2", "title": "Connected user flow"}
+  ],
+  "tasks": [
+    {
+      "id": "T1", "milestone_id": "M1", "title": "Create the application entry point",
+      "request": "Implement an application entry point that displays the project welcome screen.",
+      "deliverables": ["The application starts successfully", "The welcome screen renders"],
+      "allowed_paths": ["src/", "tests/", "package.json", "package-lock.json"],
+      "dependencies": [], "constraints": ["Preserve existing public APIs"],
+      "non_goals": ["Deploy the application"], "required_checks": ["test", "build"], "weight": 1
+    },
+    {
+      "id": "T2", "milestone_id": "M2", "title": "Connect the user profile screen",
+      "request": "Connect the profile screen to the existing profile service and display loading, success, and error states.",
+      "deliverables": ["The profile is loaded from the service", "Loading and error states are visible"],
+      "allowed_paths": ["src/profile/", "tests/profile/"], "dependencies": ["T1"],
+      "constraints": ["Use the existing authentication flow"], "non_goals": ["Change authentication or deploy"],
+      "required_checks": ["test", "typecheck", "build"], "weight": 2
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+# KH starter recipes. Stamped by install.py, then yours to edit.
+#
+# Deliberately small. These are the handful you need on day one: run something,
+# watch it, and open the trace. Add your own as your chains grow, and see the
+# example branch for the fuller set (orchestrator agents, kill, rosters, ipi).
+
+# `.env` reaches every ADW through this, so keys work without exporting them.
+set dotenv-load
+set positional-arguments
+
+# Every recipe passes this through, so `KH_CONFIG=other.yaml just start "..."`
+# swaps the whole roster for one run.
+config := env_var_or_default("KH_CONFIG", "adws/adw_kh_config/kh.config.yaml")
+db     := "adws/adw_data/kh.db"
+
+# list every recipe
+default:
+    @just --list
+
+# ── run a workflow ──────────────────────────────────────────────────────────
+# Args pass straight through: "<prompt or path/to/prompt.md>" [--adw-id X]
+
+# one agent, one prompt: just prompt "summarize this repo"
+prompt *ARGS:
+    uv run adws/adw_prompt.py --config "${KH_CONFIG:-adws/adw_kh_config/kh.config.yaml}" "$@"
+
+# read-only recon: just scout "where is auth handled"
+scout *ARGS:
+    uv run adws/adw_scout.py --config "${KH_CONFIG:-adws/adw_kh_config/kh.config.yaml}" "$@"
+
+# bounded guarded light workflow: just simple-sdlc "add a /health endpoint"
+simple-sdlc *ARGS:
+    uv run adws/adw_simple_sdlc.py --config "${KH_CONFIG:-adws/adw_kh_config/kh.config.yaml}" "$@"
+
+# prepare independently reviewed project documentation
+bootstrap *ARGS:
+    uv run adws/adw_bootstrap.py --config "${KH_CONFIG:-adws/adw_kh_config/kh.config.yaml}" "$@"
+
+# independently reviewed plan only: just plan-review "add a /health endpoint"
+plan-review *ARGS:
+    uv run adws/adw_plan_review.py --config "${KH_CONFIG:-adws/adw_kh_config/kh.config.yaml}" "$@"
+
+# guarded task or tracked project task: just start --task T1
+start *ARGS:
+    uv run adws/adw_start.py --config "${KH_CONFIG:-adws/adw_kh_config/kh.config.yaml}" "$@"
+
+# project plan, status, next and reports: just project status
+project *ARGS:
+    uv run adws/adw_project.py "$@"
+
+# ── watch it ────────────────────────────────────────────────────────────────
+# Reads never block a running workflow, the db is WAL. Poll as hard as you like.
+
+# the last 10 runs
+sessions:
+    @python3 adws/kh_commands.py sessions
+
+# phase status in sequence: just phases <adw_id>
+phases ADW_ID:
+    @python3 adws/kh_commands.py phases "${1}"
+
+# the live event tail: just tail <adw_id>
+tail ADW_ID:
+    @python3 adws/kh_commands.py tail "${1}"
+
+# what a run has alive right now, with pids: just procs <adw_id>
+procs ADW_ID:
+    @python3 adws/kh_commands.py procs "${1}"
+
+# ── observability UI ────────────────────────────────────────────────────────
+
+# Needs bun. The db path is passed explicitly because the server runs from the
+# app dir and would otherwise look for a trace db sitting next to itself.
+
+# build and serve the trace UI and API at http://localhost:4600
+obs:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export KH_PROJECT_ROOT="$PWD"
+    export KH_DB="$PWD/adws/adw_data/kh.db"
+    if [[ ! -f .claude/skills/kh/apps/visualizer/package.json ]]; then
+        echo "Optional visualizer is not installed. From the complete KH distribution run:" >&2
+        printf 'python3 install.py --project "%s" --with-visualizer\n' "$PWD" >&2
+        echo "Text traces remain available: just sessions / just phases RUN_ID" >&2
+        exit 1
+    fi
+    command -v bun >/dev/null 2>&1 || { echo "Visualizer requires Bun; install it explicitly before running just obs." >&2; exit 1; }
+    cd .claude/skills/kh/apps/visualizer
+    bun install --frozen-lockfile
+    bun run build
+    exec bun run server/index.ts

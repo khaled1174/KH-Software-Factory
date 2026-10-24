@@ -1,0 +1,16 @@
+{
+  "id": "eval-30-model-choice-asked",
+  "title": "The start command asks the owner for model and effort per role before the run, from the read-only menu",
+  "check": {
+    "type": "contains",
+    "path": ".claude/commands/kh-start.md",
+    "needles": [
+      "## Model choice for this run",
+      "AskUserQuestion",
+      "\"adws/adw_models.py\", \"--choices\"",
+      "--use ROLE=RUNTIME:MODEL:EFFORT",
+      "never during it",
+      ".claude/skills/kh/references/model-choice.md"
+    ]
+  }
+}

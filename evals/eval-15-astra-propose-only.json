@@ -1,0 +1,12 @@
+{
+  "id": "eval-15-astra-propose-only",
+  "title": "astra-pack-audit proposes fixes and never applies them",
+  "check": {
+    "type": "contains",
+    "path": ".claude/skills/astra-pack-audit/SKILL.md",
+    "needles": [
+      "It does not apply them.",
+      "Don't edit any files unless the user explicitly asks"
+    ]
+  }
+}

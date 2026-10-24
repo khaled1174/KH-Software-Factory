@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+!.env.sample
+.kh/
+.kh-observer/
+.kh-backups/
+adws/adw_data/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm

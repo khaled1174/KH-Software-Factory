@@ -1,0 +1,11 @@
+{
+  "id": "eval-17-router-names-controller",
+  "title": "Router keeps one controller and one writer for overlaps",
+  "check": {
+    "type": "contains",
+    "path": ".claude/skills/kh/references/model-choice.md",
+    "needles": [
+      "Keep one controller and one writer"
+    ]
+  }
+}

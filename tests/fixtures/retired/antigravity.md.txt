@@ -1,0 +1,76 @@
+# Antigravity account setup
+
+Read this reference when selecting antigravity_cli or diagnosing its account/tool
+configuration. KH runs the owner's installed, signed-in agy CLI. This account
+route does not need a Google API key. It does not establish the paid plan's name
+or guarantee that every model is available to that account.
+
+## Local account and executable
+
+Follow Google's [installation and authentication instructions](https://www.antigravity.google/docs/cli/install/).
+Run agy --version, open agy and complete its native account login. Inspect
+agy models before recording the actual owner-selected model. AGY_CLI_PATH can
+name an explicit executable; otherwise KH uses agy from PATH.
+KH neither installs this CLI nor logs in on the owner's behalf.
+
+The native settings file ~/.gemini/antigravity-cli/settings.json must not select
+modelProvider: gemini for this account route. KH refuses that API-key provider
+setting instead of changing global authentication. The adapter withholds API-key
+and provider-override environment variables from this subprocess.
+
+## Role configuration
+
+Choose runtime/model/effort through the existing setup command while idle:
+
+```text
+/kh-setup-models --set builder=antigravity_cli:MODEL:EFFORT
+/kh-setup-models --set builder=antigravity_cli:MODEL:EFFORT --apply
+/kh-models --doctor
+/kh-start --dry-run "Exact accepted task request"
+```
+
+MODEL and EFFORT are placeholders for the owner's actual available choice.
+Preview writes nothing. Applying records the selected profile in .kh/models.json
+and .kh/routing.json without invoking a provider. Other roles and profile limits
+are preserved. Saved choices also apply to mapped standalone calls such as
+/kh-prompt --agent builder; that single phase is not full guarded acceptance.
+Each needed role must be configured independently.
+
+The adapter requires an explicit tool list and harness_engineering: [].
+It refuses tools: null. Safe builder tools are read, grep, find, ls, edit and
+write; actual writes remain limited to project source scope and phase evidence.
+A file-only builder can edit Swift source while the controller runs configured
+quality commands. Review roles keep source writes empty but need a write tool
+when their phase requires an evidence file.
+
+KH installs a temporary native PreToolUse hook in the role's isolated workspace.
+It validates hook discovery and session/invocation attestations, denies unknown
+tools and controller/protected-path writes, preserves prior hooks and removes
+its temporary additions after confirmed completion. This is a tool/path gate,
+not an OS or network sandbox for any granted shell process. Native Antigravity
+approval remains authoritative; KH does not pass auto_approve or bypass denial.
+See [headless behavior](https://www.antigravity.google/docs/cli/headless/) and
+the [transport contract](delegation.md#antigravity-account-transport).
+
+## Native tests and compatibility
+
+Add bash only when the owner requires execution inside the role and has
+configured its exact quality captures. Do not grant blanket Bash access to
+work around a host denial. The [test-command reference](test-command-permissions.md)
+defines literal grants and the two process-local database override forms.
+Declaring required_test_commands or approving a plan grants no tool or permission.
+Known conflicts fail before building; external permission remains unverified
+until a real tool receipt.
+
+Model choices stay fixed for a running invocation. Persist defaults after the
+writer ends or choose --use before a later run. No model switch expands scope,
+checks, native permissions or limits. See [model choice](model-choice.md).
+
+## Evidence and limits
+
+The [configuration reference](config.md#antigravity-account-transport) and
+[delegation contract](delegation.md#antigravity-account-transport) define result
+grace, process cleanup, final evidence sealing and normalized usage.
+Transport success still requires the ordinary scope, checks and independent
+review gates. Tokens are normalized without adding thinking twice; unreported
+dollars remain unknown, never measured free use. Cost is informational.

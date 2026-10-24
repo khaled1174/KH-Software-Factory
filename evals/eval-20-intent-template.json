@@ -1,0 +1,14 @@
+{
+  "id": "eval-20-intent-template",
+  "title": "Intent template ships with its required sections",
+  "check": {
+    "type": "contains",
+    "path": ".claude/skills/kh/templates/intent.md",
+    "needles": [
+      "## Task request",
+      "## Problem",
+      "## Proposed outcome",
+      "## Acceptance"
+    ]
+  }
+}

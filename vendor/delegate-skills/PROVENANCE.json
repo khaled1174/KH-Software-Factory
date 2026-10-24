@@ -1,0 +1,13 @@
+{
+  "repository": "https://github.com/amElnagdy/delegate-skills",
+  "commit": "b781ee2e23089630e2fbee1cfd6174afe4edeb76",
+  "upstream_blobs": {
+    "LICENSE": "55e1e59fa7f7367233924401ba0d214cf8f02a86",
+    "skills/codex-delegate/scripts/relay.mjs": "b415fb908051bfa7c2d73d4c97da114ceefbae30"
+  },
+  "adapted_sha256": {
+    "LICENSE": "89688147397ce869b6aaeb2be66510581b430d0fcadb4ecd5ade4f5737a39d48",
+    "skills/codex-delegate/scripts/relay.mjs": "57848b534c83faf79c44b4dcec34cc92928ad3c2c617846135348a5041ff6fad"
+  },
+  "license": "MIT"
+}

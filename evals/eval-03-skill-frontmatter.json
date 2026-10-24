@@ -1,0 +1,21 @@
+{
+  "id": "eval-03-skill-frontmatter",
+  "title": "Every SKILL.md carries the allowed frontmatter contract",
+  "check": {
+    "type": "frontmatter",
+    "glob": ".claude/skills/*/SKILL.md",
+    "required": [
+      "name",
+      "description"
+    ],
+    "allowed": [
+      "name",
+      "description",
+      "license",
+      "compatibility",
+      "metadata",
+      "allowed-tools",
+      "disable-model-invocation"
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+The existing record matches the source, so I'm proposing it unchanged.
+
+```json
+{
+  "status": "success",
+  "summary": "Proposed the change record for the failures report at app_docs/failures.md.",
+  "artifacts": [],
+  "notes_for_next_agent": "docs/reports/failures.md is not a validator-accepted documentation path, so the builder writes it. I did not read it. The record's content matches the current failures.py and tests/test_failures.py. No read_when conditions changed, so conditional_docs.md is not a target.",
+  "candidate_sha256": "58955afbae96e6007eb6efedc5494ac3a5582daf15c40b9c77050ca859a8b3ab",
+  "documented_paths": ["app_docs/failures.md"],
+  "documents": [
+    {
+      "path": "app_docs/failures.md",
+      "purpose": "change_record",
+      "status": "historical",
+      "topics": ["reports", "failures"],
+      "applies_to": ["logreports/reports/failures.py", "tests/test_failures.py"],
+      "content": "# Change record: failures report\n\n## What changed\n\n`logreports/reports/failures.py` now implements `summarize(records)`. It builds a new dict and, for each record with `status >= 400`, increments the count for that record's service. Services with no failures never appear, and empty input gives `{}`.\n\nThe function does not mutate its input. Its result is a plain dict of integers, so it is JSON-serializable.\n\n## Why it matters\n\nThe `failures` module was a stub. `python3 -m logreports input.jsonl --report failures` now prints the per-service failure counts as JSON with sorted keys. The CLI already calls `summarize(records)`, so no CLI change was needed.\n\n## Files\n\n- `logreports/reports/failures.py`: the implementation.\n- `tests/test_failures.py`: unittest cases for empty input, the boundaries 399, 400 and 599, multiple services, exclusion of all-success services, mixed rows, non-mutation, JSON serializability, and the CLI with populated and empty files.\n- `docs/reports/failures.md`: output shape, the >= 400 rule, exclusion and empty behavior, and CLI usage.\n- `app_docs/failures.md`: this record.\n\n`logreports/core.py` and `logreports/__main__.py` are unchanged.\n\n## How to verify\n\n```\npython3 -B -m unittest discover -s tests\npython3 -m logreports input.jsonl --report failures\n```\n\nThe controller's `test` and `build` checks and the independent review decide acceptance. This record does not.\n"
+    }
+  ]
+}
+```

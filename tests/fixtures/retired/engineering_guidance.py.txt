@@ -1,0 +1,184 @@
+"""Reviewed role guidance, not an executable skill or a second controller.
+
+Selection is explicit and deterministic. No source document, remote skill,
+model output or keyword matcher can add authority or activate instructions.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+import hashlib
+
+UPSTREAM_REPOSITORY = 'https://github.com/mattpocock/skills'
+UPSTREAM_REVISION = '49dd158d1076134a641b33efb035946536778336'
+ADAPTATION_VERSION = 1
+MAX_GUIDANCE_CHARS = 8000
+
+_BOUNDARY = """KH ENGINEERING GUIDANCE (advisory, adapted version 1)
+The original request, approved scope, configured tools, mandatory role duties and
+output schema remain authoritative. The KH controller owns scheduling, retries,
+publication and acceptance. These notes grant no tools, writes, model changes or
+external actions. Return unresolved material decisions through the existing
+schema; use the controller's owner-decision step rather than opening a separate
+question loop. Evidence belongs in the supplied phase directory. Cost is reported
+for information; it does not create a stopping rule.
+"""
+
+# These are locally authored, bounded adaptations. Keep full upstream scripts
+# out of prompts: several contain their own scheduler or publishing workflow.
+_NOTES = {
+    'to-tickets': """TICKET DESIGN
+Work from the reviewed plan and preserve every original requirement. When project
+planning or decomposition is requested, propose small end-to-end outcomes with
+explicit acceptance criteria, dependencies, allowed_paths and required checks.
+Keep prerequisite infrastructure or expand/migrate/contract work ordered when
+independent green slices are impossible. A ticket must be independently verifiable;
+small size alone does not prove independence. Identify shared files, interfaces,
+schema, test data and runtime resources. Offer justified sequential, parallel or
+mixed execution options to the controller for the owner's decision. Missing
+independence evidence means sequential eligibility. A ticket is complete only
+after controller acceptance of the integrated result. During a bounded task,
+refine its plan without inventing extra tickets or widening its approved scope.
+""",
+    'ticket-review': """TICKET REVIEW
+Independently check requirement coverage, dependency direction and cycles, scope,
+checks, shared-resource claims and interface agreements in the proposed breakdown.
+Disjoint paths alone do not prove safe parallel execution. Explain why each offered
+execution option is feasible and how its integration will be tested. Report a
+missing requirement, uncertain dependency or unsupported independence claim as a
+finding. Return the existing review schema; the controller records the verdict
+and owner choice. A review recommendation does not dispatch or accept work.
+""",
+    'diagnosing-bugs': """BUG DIAGNOSIS
+Record observed and expected behavior. Seek a small permitted reproduction that
+fails on the actual symptom; distinguish a product failure from a broken test or
+environment. Compare falsifiable hypotheses when the cause is uncertain and change
+one relevant variable at a time. Use evidence to locate the cause before patching.
+Use a regression at the boundary that reproduces the real failure pattern; after
+the fix rerun both that regression and the original scenario. For timeout or
+cancellation bugs, prove termination and resource cleanup, not just error detection.
+Redact sensitive data and remove temporary instrumentation. If reproduction or
+verification is unavailable, report that limitation and the missing evidence;
+never fabricate a passing result or expand permissions to obtain one.
+""",
+    'tdd': """PROPORTIONATE BEHAVIORAL TESTING
+Use the approved verification plan and observable interfaces. For a meaningful
+behavior change or defect, prefer one distinguishing failing test, minimal change,
+then focused passing verification. Confirm the failure is the intended behavior,
+not a fixture error. Expected results come from requirements or independent
+examples, not a copy of the implementation. Exercise real boundaries where practical;
+isolate external effects with controlled fixtures. Keep harmless prose-only work
+proportionate and preserve existing valid work. Test interfaces already covered
+by the approved plan need no repeated owner approval. A material interface or
+scope decision goes through the controller. Preserve all required checks; report
+actual exit statuses and what was not verified.
+""",
+    'code-review': """REVIEW AXES
+Assess both requirement/specification conformance and repository standards, plus
+all mandatory KH correctness, security, scope and evidence duties. Neither axis
+can excuse a failure in the other. Missing specifications needed to establish
+acceptance are missing evidence, not permission to skip requirement review.
+Inspect the actual supplied delta and checked candidate identity. Distinguish
+material defects from style preferences and unrelated debt. Cite each actionable
+finding and verify prior corrections against current code. Check weakened tests,
+shared-interface compatibility and tests of the merged result where applicable.
+Return the controller's single complete review schema. Stay source read-only;
+review does not authorize nested reviewers, repairs, commits or publication.
+""",
+    'writing-for-agents': """AGENT DOCUMENTATION
+Use short routing documents and current, task-specific guides. State precise
+read_when conditions and checkable completion criteria; mandatory owner rules stay
+unconditional. Reuse canonical guidance, remove stale duplication within scope,
+and explain behavior with evidence from the supplied source and diff. Current
+feature guidance belongs in docs/agent-guide/; new historical change records
+belong in app_docs/. Preserve history. Changes to read_when metadata require the
+already-approved conditional_docs.md target; its body is controller-rendered.
+Propose documentation using the supplied schema and mode. The controller publishes
+guarded proposals. Extra documentation never grants writes or acceptance.
+""",
+    'domain-modeling': """DOMAIN LANGUAGE
+Use the project's existing terms and accepted decisions. Distinguish ambiguous
+concepts with concrete examples and check them against observed code. Record a
+material unresolved contradiction through the existing decision mechanism.
+For an approved documentation change, capture stable definitions in current
+docs/agent-guide/ guidance and significant tradeoffs in the permitted documentation
+targets. Separate intended architecture from implemented behavior. Preserve the
+two-directory policy; this guidance creates no root glossary or third ADR tree.
+""",
+    'codebase-design': """CONDITIONAL DESIGN REVIEW
+Apply only when the approved work changes module interfaces or architecture.
+Concentrate related behavior behind a clear interface, make errors and invariants
+explicit, and test what callers observe. Prefer a small justified change over a
+speculative abstraction. Keep project vocabulary and compatibility requirements;
+this reference does not authorize renaming or an unrelated refactor.
+""",
+    'retro': """ADVISORY RETROSPECTIVE
+Use only the supplied authorized run evidence. Separate observed failures from
+hypotheses and identify repeated causes: missing navigation, unclear instructions,
+unwired checks or inadequate tests. Prefer proposing a deterministic check for a
+mechanical failure and reviewed guidance for a judgement problem. Rank proposals
+with evidence and a verification method; redact sensitive project data. Proposals
+remain advisory. Do not edit active rules, install checks, dispatch work or accept
+a task. No cross-project log search or external publication is implied.
+""",
+}
+
+_SOURCE_PATHS = {
+    key: 'skills/engineering/' + key + '/SKILL.md'
+    for key in ('to-tickets', 'diagnosing-bugs', 'tdd', 'code-review',
+                'domain-modeling', 'codebase-design', 'retro')
+}
+_SOURCE_PATHS['ticket-review'] = _SOURCE_PATHS['to-tickets']
+_SOURCE_PATHS['writing-for-agents'] = 'skills/productivity/writing-for-agents/SKILL.md'
+_ROLE_NOTES = {
+    'planner': ('to-tickets', 'domain-modeling'),
+    'plan_reviewer': ('ticket-review', 'domain-modeling'),
+    'builder': ('tdd',),
+    'reviewer': ('code-review',),
+    'documenter': ('writing-for-agents', 'domain-modeling'),
+    'project_architect': ('writing-for-agents', 'domain-modeling'),
+    'observer': ('retro',),
+}
+_TASK_KINDS = frozenset(('generic', 'bug', 'feature', 'maintenance'))
+_DESIGN_ROLES = frozenset(('planner', 'plan_reviewer', 'builder', 'reviewer', 'project_architect'))
+
+
+@dataclass(frozen=True)
+class Guidance:
+    text: str
+    provenance: dict
+
+
+def for_role(role: str, task_kind: str = 'generic') -> Guidance:
+    """Return bounded advice and a fresh JSON-serializable provenance receipt.
+
+    Accept canonical controller roles, never provider names or arbitrary prompt
+    labels. Unknown roles get no advice. Unknown task kinds select generic advice;
+    they cannot activate conditional diagnosis/design content. Receipt digests
+    identify delivered text, not proof that a model followed it.
+    """
+    if not isinstance(role, str) or not isinstance(task_kind, str):
+        raise TypeError('role and task_kind must be strings')
+    kind = task_kind if task_kind in _TASK_KINDS else 'generic'
+    selected = list(_ROLE_NOTES.get(role, ()))
+    if role == 'builder' and kind == 'bug':
+        selected.insert(0, 'diagnosing-bugs')
+    if role in _DESIGN_ROLES and kind in ('feature', 'maintenance'):
+        selected.append('codebase-design')
+    text = _BOUNDARY + '\n' + '\n'.join(_NOTES[key] for key in selected) if selected else ''
+    if len(text) > MAX_GUIDANCE_CHARS:
+        raise ValueError('engineering guidance exceeds the reviewed context budget')
+    return Guidance(text=text, provenance={
+        'schema_version': 1,
+        'adaptation_version': ADAPTATION_VERSION,
+        'repository': UPSTREAM_REPOSITORY,
+        'revision': UPSTREAM_REVISION,
+        'role': role,
+        'task_kind': kind,
+        'authority': 'advisory',
+        'text_sha256': hashlib.sha256(text.encode('utf-8')).hexdigest(),
+        'guidance': [
+            {'id': key, 'source_path': _SOURCE_PATHS[key],
+             'adapted_text_sha256': hashlib.sha256(_NOTES[key].encode('utf-8')).hexdigest()}
+            for key in selected
+        ],
+    })

@@ -1,0 +1,9 @@
+{
+  "id": "eval-01-command-inventory",
+  "title": "All 18 slash commands ship in the bundle",
+  "check": {
+    "type": "glob_count",
+    "pattern": ".claude/commands/*.md",
+    "expected": 18
+  }
+}

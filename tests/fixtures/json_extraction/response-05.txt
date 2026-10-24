@@ -1,0 +1,22 @@
+```json
+{
+  "status": "success",
+  "summary": "Proposed the historical change record for the status_counts report at app_docs/status_counts.md.",
+  "artifacts": ["/private/var/folders/j3/gncvd3jn4rq3gtcsq8x6bwsm0000gn/T/kh-agent-_btqk8nu/workspace/adws/adw_data/sessions/71b12117/context_handoff/71b12117_12_document_1/documenter/notes.md"],
+  "notes_for_next_agent": "app_docs/status_counts.md already exists in the working tree with a short record. This proposal replaces it with a fuller one. I did not run the tests. The out-of-range behaviour (statuses outside 200..599 are ignored when passed straight to summarize) comes from reading the source and tests. The loader never produces such statuses.",
+  "candidate_sha256": "60f8d9283293a0c44607ea6fbf235d85584a6accd89c1621135e58c697df7dfb",
+  "documented_paths": ["app_docs/status_counts.md"],
+  "documents": [
+    {
+      "path": "app_docs/status_counts.md",
+      "purpose": "change_record",
+      "status": "historical",
+      "topics": ["reports", "status_counts"],
+      "supersedes": [],
+      "source_revision": "",
+      "applies_to": ["logreports/reports/status_counts.py", "tests/test_status_counts.py", "docs/reports/status_counts.md"],
+      "content": "# Change record: status_counts report\n\n## What changed\n\n`logreports/reports/status_counts.py` now implements `summarize(records)`. It counts records by HTTP status class and returns a dict with exactly four keys: `2xx`, `3xx`, `4xx` and `5xx`. All four keys are always present, with int values. Classes with no records are `0`. Empty input returns `{\"2xx\": 0, \"3xx\": 0, \"4xx\": 0, \"5xx\": 0}`.\n\nA record is classified by `status // 100`. The boundaries 200, 299, 300, 399, 400, 499, 500 and 599 land in their own classes. A status outside 200..599 passed directly to `summarize` is ignored and adds no key. The loader never produces such a status.\n\nThe function does not mutate its input, does no I/O and returns a JSON-serializable dict.\n\n## Files\n\n- `logreports/reports/status_counts.py`: the report.\n- `tests/test_status_counts.py`: `unittest` tests for empty input, mixed counts with a zero class, the eight boundaries, the exact key set and int values, out-of-range statuses, non-mutation, and a run through `load_records`.\n- `docs/reports/status_counts.md`: usage, output shape, class boundaries and edge cases.\n- `app_docs/status_counts.md`: this record.\n\n`logreports/core.py` and `logreports/__main__.py` are unchanged.\n\n## Verify\n\n```\npython3 -B -m unittest discover -s tests\npython3 -m logreports INPUT.jsonl --report status_counts\n```\n\nThe controller `test` and `build` checks run after this stage.\n"
+    }
+  ]
+}
+```

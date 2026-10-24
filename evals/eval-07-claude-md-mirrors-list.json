@@ -1,0 +1,13 @@
+{
+  "id": "eval-07-claude-md-mirrors-list",
+  "title": "CLAUDE.md names the protected mechanism files literally",
+  "check": {
+    "type": "contains",
+    "path": "CLAUDE.md",
+    "needles": [
+      ".claude/protected-paths.txt",
+      ".claude/settings.json",
+      ".claude/hooks/"
+    ]
+  }
+}

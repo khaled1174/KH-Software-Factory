@@ -1,0 +1,20 @@
+```json
+{
+  "status": "success",
+  "summary": "Proposed app_docs/latency.md as the change record for the latency report. I checked it against latency.py and test_latency.py and it matches.",
+  "artifacts": ["/private/var/folders/j3/gncvd3jn4rq3gtcsq8x6bwsm0000gn/T/kh-agent-y23twuuf/workspace/adws/adw_data/sessions/47ca3547/context_handoff/47ca3547_07_document_1/documenter/document.md"],
+  "notes_for_next_agent": "app_docs/latency.md already existed in the working tree and I did not edit it. docs/reports/latency.md is not in the documentation schema's approved paths, so it is not part of this proposal.",
+  "candidate_sha256": "7227b0ac97783c53bea9bd0f20aa40481e7293d3c47ab3972888e89c7b43e661",
+  "documented_paths": ["app_docs/latency.md"],
+  "documents": [
+    {
+      "path": "app_docs/latency.md",
+      "purpose": "change_record",
+      "status": "historical",
+      "topics": ["latency", "reports"],
+      "applies_to": ["logreports/reports/latency.py", "tests/test_latency.py"],
+      "content": "# Change record: latency report\n\n## What changed\n\n`logreports/reports/latency.py` now implements `summarize(records)`. It returns `count`, `min_ms`, `max_ms`, `mean_ms` and `p95_ms`. p95 is nearest-rank: the sorted durations at 1-based rank `ceil(0.95*n)`, computed with integer arithmetic as `(95*n+99)//100`. Empty input gives `count` 0 and `None` for the four metrics.\n\nThe function builds a new list of durations and sorts that copy, so records and the input list are not mutated. The result is a plain dict and is JSON-serializable.\n\n## Files\n\n- `logreports/reports/latency.py`: the implementation.\n- `tests/test_latency.py`: unittest cases for empty input, a single record, min/max/mean, p95 at n=20, 21 and 100 with unsorted input, duplicates, float durations, non-mutation, JSON serializability with five keys, and the CLI with populated and empty files.\n- `docs/reports/latency.md`: output, p95 rule, empty-input behavior and CLI usage.\n- `app_docs/latency.md`: this record.\n\n`logreports/core.py` and `logreports/__main__.py` are unchanged.\n\n## Behavior note\n\n`mean_ms` is not rounded, so it is a float even for integer inputs.\n\n## How to verify\n\n```\npython3 -B -m unittest discover -s tests\npython3 -m logreports input.jsonl --report latency\n```\n\nThe controller's `test` and `build` checks and the independent review decide acceptance. This record does not.\n"
+    }
+  ]
+}
+```

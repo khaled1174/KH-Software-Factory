@@ -1,0 +1,10 @@
+{
+  "id": "eval-02-commands-documented",
+  "title": "Every shipped command is documented in COMMANDS.md",
+  "check": {
+    "type": "files_documented_in",
+    "glob": ".claude/commands/*.md",
+    "document": "COMMANDS.md",
+    "match": "stem"
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "KH Scope Guard"
+  short_description: "Keep KH work within scope with verified outcomes"
+  default_prompt: "Use $kh-scope-guard to bound this KH task and its verification before execution."

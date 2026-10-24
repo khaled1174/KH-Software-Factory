@@ -1,0 +1,212 @@
+:root {
+  color-scheme: light;
+  --bg: #f5f7fa;
+  --panel: #ffffff;
+  --panel-2: #f1f4f8;
+  --panel-3: #f8fafc;
+  --border: #cbd5e1;
+  --border-soft: #e2e8f0;
+  --text: #172238;
+  --dim: #526079;
+  --faint: #5c6a7f;
+  --green: #147546;
+  --red: #ba3a35;
+  --blue: #2459c4;
+  --amber: #95610c;
+  --purple: #7146b2;
+  --cyan: #086f82;
+  --violet: #5659b9;
+  --success-bg: #eaf7ef;
+  --danger-bg: #fff0ef;
+  --accent-bg: #edf3ff;
+  --warning-bg: #fff6df;
+  --shadow: 0 4px 20px rgba(30, 50, 80, 0.05);
+  --sans: 'Helvetica Neue', Arial, system-ui, sans-serif;
+  --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, 'Cascadia Mono',
+    'Roboto Mono', monospace;
+  --surface: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+a {
+  color: var(--blue);
+  text-decoration: none;
+}
+
+pre {
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--panel-3);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* JSON token colors — spans emitted by lib/highlight.ts */
+.j-key {
+  color: var(--purple);
+}
+
+.j-str {
+  color: var(--green);
+}
+
+.j-num {
+  color: var(--amber);
+}
+
+.j-bool {
+  color: var(--cyan);
+}
+
+.j-null {
+  color: var(--red);
+}
+
+.dim {
+  color: var(--dim);
+}
+
+.faint {
+  color: var(--faint);
+}
+
+.error-bar {
+  margin: 12px 24px;
+  padding: 10px 14px;
+  border: 1px solid #edc5c2;
+  background: var(--danger-bg);
+  color: var(--red);
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+.empty-state {
+  padding: 56px 24px;
+  text-align: center;
+  color: var(--dim);
+  font-size: 16px;
+}
+
+/* Rendered-markdown blocks (compiled prompts) — global because the content is
+   injected via v-html and scoped styles can't reach it. */
+.md {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.md h1 {
+  font-size: 20px;
+  margin: 14px 0 8px;
+}
+
+.md h2 {
+  font-size: 18px;
+  margin: 14px 0 8px;
+}
+
+.md h3,
+.md h4 {
+  font-size: 17px;
+  margin: 12px 0 6px;
+}
+
+.md h1:first-child,
+.md h2:first-child,
+.md h3:first-child {
+  margin-top: 0;
+}
+
+.md p {
+  margin: 8px 0;
+  white-space: pre-wrap;
+}
+
+.md code {
+  background: var(--panel-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  padding: 1px 7px;
+  font-size: 16px;
+}
+
+.md pre.md-code {
+  margin: 10px 0;
+  white-space: pre;
+}
+
+.md pre.md-code code {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.md ul,
+.md ol {
+  margin: 8px 0;
+  padding-left: 28px;
+}
+
+.md li {
+  margin: 3px 0;
+}
+
+.md blockquote {
+  margin: 10px 0;
+  padding: 4px 0 4px 14px;
+  border-left: 3px solid var(--border);
+  color: var(--dim);
+  white-space: pre-wrap;
+}
+
+.md hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 14px 0;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+button, input, select { font: inherit; }
+button, a, input, select, summary { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+button { touch-action: manipulation; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

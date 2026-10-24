@@ -1,0 +1,34 @@
+```json
+{
+  "status": "success",
+  "summary": "Documents the latency report change. app_docs/latency.md is the change record. docs/reports/latency.md is the report documentation. Both match the current latency.py and test_latency.py. All four changed paths are bound to the candidate.",
+  "candidate_sha256": "60fd5b3223aff0d97ae44fdba51930d09abffd9bb856fb7ae290f0da7e4cdd2b",
+  "documented_paths": [
+    "app_docs/latency.md",
+    "docs/reports/latency.md",
+    "logreports/reports/latency.py",
+    "tests/test_latency.py"
+  ],
+  "documents": [
+    {
+      "path": "app_docs/latency.md",
+      "purpose": "change_record",
+      "status": "historical",
+      "topics": ["latency", "report"],
+      "applies_to": ["logreports/reports/latency.py", "tests/test_latency.py", "docs/reports/latency.md"],
+      "content": "# latency report implementation\n\n## Request\n\nImplement the latency report: count, min_ms, max_ms, mean_ms and p95_ms; p95 uses nearest-rank ceil(0.95*n); empty input yields count zero and null for the four metrics; do not mutate input; add tests and documentation; keep the loader and CLI unchanged.\n\n## Files changed\n\n- `logreports/reports/latency.py`: `summarize(records)` sorts a copy of the durations and returns the five metrics. p95 is `durations[(95*n+99)//100 - 1]`.\n- `tests/test_latency.py`: direct tests of `summarize` and CLI tests.\n- `docs/reports/latency.md`: report documentation (output shape, empty input, p95 rule, CLI usage).\n- `app_docs/latency.md`: this record.\n\n## Decisions\n\n- Result shape is a flat dict with the five requested keys, because `INTERFACE.md` prescribes none.\n- The rank uses integer arithmetic to avoid float error in `ceil(0.95*n)`.\n- `mean_ms` is not rounded. The loader guarantees valid durations, so no validation is added.\n\n## Test coverage\n\n- Empty input, single record, unordered input.\n- p95 ranks for n = 1, 2, 20, 21, 100 and 101.\n- Mixed int and float durations.\n- JSON serializability and no mutation of the input.\n- CLI: `--report latency` for a populated and an empty file.\n\n## Verification\n\nRun the controller `test` and `build` checks. Results are in the controller command records.\n\n`logreports/core.py` and `logreports/__main__.py` are not changed.\n"
+    },
+    {
+      "path": "docs/reports/latency.md",
+      "purpose": "guide",
+      "status": "active",
+      "topics": ["latency", "report"],
+      "applies_to": ["logreports/reports/latency.py", "tests/test_latency.py"],
+      "content": "# latency report\n\n`logreports.reports.latency.summarize(records)` summarizes `duration_ms` over the records.\n\n## Output\n\nA flat dict with exactly these keys:\n\n- `count`: number of records.\n- `min_ms`, `max_ms`: smallest and largest `duration_ms`, as stored (int or float).\n- `mean_ms`: sum divided by count, a float, not rounded.\n- `p95_ms`: nearest-rank 95th percentile.\n\n## Empty input\n\n`count` is `0` and `min_ms`, `max_ms`, `mean_ms` and `p95_ms` are `null` (`None`).\n\n## p95 rule\n\nSort the durations ascending. With `n` records, `p95_ms` is the value at 1-based rank `ceil(0.95 * n)`. The rank is computed in integer arithmetic as `(95 * n + 99) // 100`, so there is no float error.\n\nExamples: n=20 gives rank 19, n=21 gives rank 20, n=100 gives rank 95.\n\n## Rules\n\n- The input list and records are not mutated; a sorted copy of the durations is used.\n- No file, network or other I/O.\n\n## CLI\n\n```\npython3 -m logreports input.jsonl --report latency\n```\n\nPrints the result as JSON with sorted keys.\n"
+    }
+  ],
+  "confirmed_documents": [],
+  "artifacts": ["/private/var/folders/j3/gncvd3jn4rq3gtcsq8x6bwsm0000gn/T/kh-agent-p1umm2aq/workspace/adws/adw_data/sessions/264192b5/context_handoff/264192b5_10_document_2/documenter/notes.md"],
+  "notes_for_next_agent": "No read_when condition added or changed, so conditional_docs.md is not a target. logreports/reports/latency.py and tests/test_latency.py are listed in documented_paths as changed source, not as documents."
+}
+```

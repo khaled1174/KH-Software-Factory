@@ -1,0 +1,88 @@
+{
+  "source_commit": "5382e4fdbb12643e4d92545cdb8d4d2481b5f1cb",
+  "description": "Saved execution-decision compatibility fixtures for deterministic disposable projects.",
+  "strategy_unit": {
+    "sequential": {
+      "schema_version": 1,
+      "input_sha256": "a8b5cc74a9097a9dfb3948a09687cb910122b91f1e4db5c2355d3605807f3c44",
+      "proposal_sha256": "fb60aadaacedad490358df075b7ffeeb62b69d99dcbee220e941622e396b623f",
+      "mode": "sequential",
+      "max_workers": 1,
+      "owner": "project-owner",
+      "review": {
+        "plan_sha256": "5a799c786eaef301df866f0d57ddaf863dceaff76e59f2ea8e559681888e1cfe",
+        "metadata_sha256": "f2dd2f55904bae33ce70f7a70fb21f8c77386f28b347d7451b28ab6c45ad5588",
+        "plan_reviewed": true,
+        "decomposition_reviewed": true,
+        "reviewer": "independent-reviewer",
+        "artifact": {
+          "path": "review.md",
+          "sha256": "203e1d638de171531c2a1324abb8fbaf735f990ce8e8fefb4fc3efcee8d7bf1b"
+        }
+      },
+      "recorded_at": "2026-10-22T13:08:46.056229+00:00"
+    },
+    "mixed": {
+      "schema_version": 1,
+      "input_sha256": "a8b5cc74a9097a9dfb3948a09687cb910122b91f1e4db5c2355d3605807f3c44",
+      "proposal_sha256": "fb60aadaacedad490358df075b7ffeeb62b69d99dcbee220e941622e396b623f",
+      "mode": "mixed",
+      "max_workers": 2,
+      "owner": "project-owner",
+      "review": {
+        "plan_sha256": "5a799c786eaef301df866f0d57ddaf863dceaff76e59f2ea8e559681888e1cfe",
+        "metadata_sha256": "f2dd2f55904bae33ce70f7a70fb21f8c77386f28b347d7451b28ab6c45ad5588",
+        "plan_reviewed": true,
+        "decomposition_reviewed": true,
+        "reviewer": "independent-reviewer",
+        "artifact": {
+          "path": "review.md",
+          "sha256": "203e1d638de171531c2a1324abb8fbaf735f990ce8e8fefb4fc3efcee8d7bf1b"
+        }
+      },
+      "recorded_at": "2026-10-22T13:08:46.057640+00:00"
+    }
+  },
+  "retained_candidate": {
+    "sequential": {
+      "schema_version": 1,
+      "input_sha256": "305fbd967a6260170f2f8f0e75f651cb6d2bf4f68b2009ab5c25fa68333d79e7",
+      "proposal_sha256": "3bbb7f322468ac5b8de8b383a52d7599e02d469ff53827d0136d211c0b51f065",
+      "mode": "sequential",
+      "max_workers": 1,
+      "owner": "Fixture owner",
+      "review": {
+        "plan_sha256": "9bf670e1a19f95d90df40b5700fde3aa195d5af6686c2781d7c40ce08c1a9f09",
+        "metadata_sha256": "9633414c74bf0b931fad6a73b1f41f7d5fef18072ae1125c5bb332b528f97b75",
+        "plan_reviewed": true,
+        "decomposition_reviewed": true,
+        "reviewer": "Fixture reviewer",
+        "artifact": {
+          "path": "review.md",
+          "sha256": "562f8e744e3a0f4d099548caae78b76b09a9481fbe104fc47fad28fff754860b"
+        }
+      },
+      "recorded_at": "2026-10-22T13:08:49.845705+00:00"
+    },
+    "mixed": {
+      "schema_version": 1,
+      "input_sha256": "305fbd967a6260170f2f8f0e75f651cb6d2bf4f68b2009ab5c25fa68333d79e7",
+      "proposal_sha256": "3bbb7f322468ac5b8de8b383a52d7599e02d469ff53827d0136d211c0b51f065",
+      "mode": "mixed",
+      "max_workers": 2,
+      "owner": "Fixture owner",
+      "review": {
+        "plan_sha256": "9bf670e1a19f95d90df40b5700fde3aa195d5af6686c2781d7c40ce08c1a9f09",
+        "metadata_sha256": "9633414c74bf0b931fad6a73b1f41f7d5fef18072ae1125c5bb332b528f97b75",
+        "plan_reviewed": true,
+        "decomposition_reviewed": true,
+        "reviewer": "Fixture reviewer",
+        "artifact": {
+          "path": "review.md",
+          "sha256": "562f8e744e3a0f4d099548caae78b76b09a9481fbe104fc47fad28fff754860b"
+        }
+      },
+      "recorded_at": "2026-10-22T13:08:49.846813+00:00"
+    }
+  }
+}

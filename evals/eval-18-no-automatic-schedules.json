@@ -1,0 +1,11 @@
+{
+  "id": "eval-18-no-automatic-schedules",
+  "title": "Observer never installs hooks or schedules automatically",
+  "check": {
+    "type": "contains",
+    "path": ".claude/skills/task-observer/SKILL.md",
+    "needles": [
+      "Do not install hooks or schedules automatically"
+    ]
+  }
+}

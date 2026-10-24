@@ -1,0 +1,20 @@
+```json
+{
+  "status": "success",
+  "summary": "Proposed the historical change record app_docs/status_counts.md for the status_counts report, based on the module, tests and report doc.",
+  "artifacts": ["/private/var/folders/j3/gncvd3jn4rq3gtcsq8x6bwsm0000gn/T/kh-agent-r12uye1e/workspace/adws/adw_data/sessions/5719cc3f/context_handoff/5719cc3f_12_document_1/documenter/notes.md"],
+  "notes_for_next_agent": "Only app_docs/status_counts.md is an approved documentation target. docs/reports/status_counts.md is builder-owned and was read only. No read_when changes, so conditional_docs.md is not needed. One thing the write-up leaves out: summarize() ignores statuses outside 2xx to 5xx instead of raising, which is safe because the loader only accepts 200..599.",
+  "candidate_sha256": "4fdb19b2083c735bd536fed654e37b4436402e2b014de365dc9c5159fef2519f",
+  "documented_paths": ["app_docs/status_counts.md"],
+  "documents": [
+    {
+      "path": "app_docs/status_counts.md",
+      "purpose": "change_record",
+      "status": "historical",
+      "topics": ["reports", "status_counts"],
+      "applies_to": ["logreports/reports/status_counts.py", "tests/test_status_counts.py", "docs/reports/status_counts.md"],
+      "content": "# Change record: status_counts report\n\n## What changed\n\n`logreports/reports/status_counts.py` now implements `summarize(records)`. It starts from `{'2xx': 0, '3xx': 0, '4xx': 0, '5xx': 0}`. For each record it increments the key `f\"{status // 100}xx\"` if that key is in the dict. The result always has all four keys, so classes with no records are `0`. Empty input gives all zeros.\n\nThe function does not mutate its input. Its result is a plain dict of integers, so it is JSON-serializable.\n\n## Why it matters\n\nThe `status_counts` module was a stub. `python3 -m logreports input.jsonl --report status_counts` now prints the counts as JSON with sorted keys. The CLI imports the module and calls `summarize(records)`, so no CLI change was needed.\n\n## Files\n\n- `logreports/reports/status_counts.py`: the implementation.\n- `tests/test_status_counts.py`: unittest cases for empty input, mixed input, unseen classes at zero, the boundaries 200, 299, 300, 399, 400, 499, 500 and 599, counts across services, non-mutation, JSON serializability with four keys, and the CLI with populated and empty files.\n- `docs/reports/status_counts.md`: output shape, class mapping, zero and empty behavior, and CLI usage.\n\n`logreports/core.py` and `logreports/__main__.py` are unchanged.\n\n## Behavior note\n\nA status outside 2xx to 5xx would be ignored, not counted. The loader accepts only integer statuses in 200..599, so this does not occur through the CLI.\n\n## How to verify\n\n```\npython3 -B -m unittest discover -s tests\npython3 -m logreports input.jsonl --report status_counts\n```\n\nThe controller's `test` and `build` checks and the independent review decide acceptance. This record does not.\n"
+    }
+  ]
+}
+```

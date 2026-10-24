@@ -1,0 +1,9 @@
+{
+  "id": "eval-05-protected-paths-valid",
+  "title": "Every protected-paths entry is project-relative and exists",
+  "check": {
+    "type": "protected_paths",
+    "path": ".claude/protected-paths.txt",
+    "required": []
+  }
+}

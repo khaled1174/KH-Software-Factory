@@ -1,0 +1,8 @@
+{
+  "id": "eval-13-env-sample-clean",
+  "title": "env.sample ships placeholders only, no secret values",
+  "check": {
+    "type": "no_secret_values",
+    "path": ".claude/skills/kh/templates/env.sample"
+  }
+}

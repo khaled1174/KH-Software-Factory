@@ -1,0 +1,9 @@
+{
+  "id": "eval-12-release-links-resolve",
+  "title": "Current documentation links from README resolve",
+  "check": {
+    "type": "links_exist",
+    "document": "README.md",
+    "link_pattern": "(?:docs/[A-Za-z_]+|START_HERE|COMMANDS|CHANGELOG)\\.md"
+  }
+}

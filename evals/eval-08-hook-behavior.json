@@ -1,0 +1,8 @@
+{
+  "id": "eval-08-hook-behavior",
+  "title": "Hook blocks protected, allows open, fails closed on bad or empty config, folds case on macOS",
+  "check": {
+    "type": "hook_behavior",
+    "hook": ".claude/hooks/protect-paths.sh"
+  }
+}

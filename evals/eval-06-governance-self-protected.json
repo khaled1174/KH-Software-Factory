@@ -1,0 +1,13 @@
+{
+  "id": "eval-06-governance-self-protected",
+  "title": "The enforcement mechanism protects itself",
+  "check": {
+    "type": "protected_paths",
+    "path": ".claude/protected-paths.txt",
+    "required": [
+      ".claude/settings.json",
+      ".claude/hooks/",
+      ".claude/protected-paths.txt"
+    ]
+  }
+}

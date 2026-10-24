@@ -1,0 +1,4 @@
+interface:
+  display_name: "Astra Pack Audit"
+  short_description: "Audit AGENTS.md chains and skills for lines that stall GPT-6 Astra"
+  default_prompt: "Use $astra-pack-audit to review the active instruction chain for pause-causing lines and propose a diff without applying it."

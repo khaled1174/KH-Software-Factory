@@ -1,0 +1,266 @@
+{
+  "schema_version": 2,
+  "description": "Offline documentation fixtures: seven defective guides, six correct guides and source-change snapshots.",
+  "base": "base",
+  "before": "before",
+  "scaffolding": [
+    "base/Makefile",
+    "base/OWNER_RULES.md",
+    "base/adws/adw_kh_config/kh.config.yaml",
+    "base/probes/parser_position.py"
+  ],
+  "cases": [
+    {
+      "id": "bad-feature-state",
+      "category": "feature_state",
+      "defective": true,
+      "guide": "guides/bad-feature-state.md",
+      "guide_sha256": "7ef42a2b7f0c122709b5174ef15c6bd9ad2981af4e8c12b211f83e33cca96cb3",
+      "source_changed_after_review": true,
+      "defect_kind": "factual"
+    },
+    {
+      "id": "good-feature-state",
+      "category": "feature_state",
+      "defective": false,
+      "guide": "guides/good-feature-state.md",
+      "guide_sha256": "8fba394729bd9ed5e3dcb1ceecd98c37e017966b8fea28bda287a94ee5f3561f",
+      "source_changed_after_review": false,
+      "defect_kind": "none"
+    },
+    {
+      "id": "bad-exception-taxonomy",
+      "category": "exception_taxonomy",
+      "defective": true,
+      "guide": "guides/bad-exception-taxonomy.md",
+      "guide_sha256": "17ae3b99122fd0f6903b5a60089f4a1c529636fc27397ca94cda851377d0873c",
+      "source_changed_after_review": false,
+      "defect_kind": "factual"
+    },
+    {
+      "id": "good-exception-taxonomy",
+      "category": "exception_taxonomy",
+      "defective": false,
+      "guide": "guides/good-exception-taxonomy.md",
+      "guide_sha256": "133e93d49d70675ac0062c0fae904855eee5ef8c7bd8497ffe1cb6c54e640cd4",
+      "source_changed_after_review": false,
+      "defect_kind": "none"
+    },
+    {
+      "id": "bad-parser-position",
+      "category": "parser_position",
+      "defective": true,
+      "guide": "guides/bad-parser-position.md",
+      "guide_sha256": "8ebaecde71fc7a14bbdfc426f559d1bb3b2adad47a6c8ec98faf51547d51a814",
+      "source_changed_after_review": false,
+      "defect_kind": "factual"
+    },
+    {
+      "id": "good-parser-position",
+      "category": "parser_position",
+      "defective": false,
+      "guide": "guides/good-parser-position.md",
+      "guide_sha256": "956e86643393d1cae197dd8cc3aefe8e4b77e2f3264078a1b42981f831a2187f",
+      "source_changed_after_review": false,
+      "defect_kind": "none"
+    },
+    {
+      "id": "bad-unsupported-restriction",
+      "category": "unsupported_restriction",
+      "defective": true,
+      "guide": "guides/bad-unsupported-restriction.md",
+      "guide_sha256": "6e9cd5cc7d251b6ea2a60772fe6a84c4e49ffd5af76cccbd4628422ed5f4b8d8",
+      "source_changed_after_review": false,
+      "defect_kind": "factual"
+    },
+    {
+      "id": "good-unsupported-restriction",
+      "category": "unsupported_restriction",
+      "defective": false,
+      "guide": "guides/good-unsupported-restriction.md",
+      "guide_sha256": "8c8b34c9ce96d2a7c11bdc4088909bb8d15ae5173a537f7b96160362f478199f",
+      "source_changed_after_review": false,
+      "defect_kind": "none"
+    },
+    {
+      "id": "bad-build-absent",
+      "category": "build_absent",
+      "defective": true,
+      "guide": "guides/bad-build-absent.md",
+      "guide_sha256": "868f13fa960bfbd3a7d8c42afe711760043ab2ae8558afff648bf998eef7642e",
+      "source_changed_after_review": false,
+      "defect_kind": "factual"
+    },
+    {
+      "id": "good-build-absent",
+      "category": "build_absent",
+      "defective": false,
+      "guide": "guides/good-build-absent.md",
+      "guide_sha256": "923c44db2171a05fbc6bec68c1f75e6c91ad8121b3b12a6dc96fad1dd29beb90",
+      "source_changed_after_review": false,
+      "defect_kind": "none"
+    },
+    {
+      "id": "bad-build-omitted",
+      "category": "build_omitted",
+      "defective": true,
+      "guide": "guides/bad-build-omitted.md",
+      "guide_sha256": "ce0cd95d772c035e4f5b9857cceed5a7fcdb7dd7f2e4e12bf7a9c643dc21d8b2",
+      "source_changed_after_review": false,
+      "defect_kind": "coverage"
+    },
+    {
+      "id": "good-build-omitted",
+      "category": "build_omitted",
+      "defective": false,
+      "guide": "guides/good-build-omitted.md",
+      "guide_sha256": "875d244e70cbb1a341eb315f9cb00466be6dcb9b698a0df65e947611bcee6913",
+      "source_changed_after_review": false,
+      "defect_kind": "none"
+    },
+    {
+      "id": "bad-parallel-feature-state",
+      "category": "feature_state",
+      "defective": true,
+      "guide": "guides/bad-parallel-feature-state.md",
+      "guide_sha256": "1b41a19198ab1f859617941dce29756443a5d81e1a4a6bc1fca301ecd4655d8f",
+      "source_changed_after_review": true,
+      "source_change_paths": [
+        "logreports/reports/status_counts.py"
+      ],
+      "parallel_source_change": true,
+      "defect_kind": "factual"
+    }
+  ],
+  "limitations": [
+    "Historical parser-position paragraph remains indeterminate; its new negative is an explicitly unambiguous derived fault.",
+    "Build omission is coverage, not historical G6. G6 exclusive test inventory is outside this corpus.",
+    "Fixture owner rules and portable build wrapper are explicit synthetic scaffolding.",
+    "Gold labels are audit data only; evaluated gates must not receive them."
+  ],
+  "base_hashes": {
+    "INTERFACE.md": "e09c4104f4f7d5ffd6a01d3ac86c5bd6ceeab56fbcc078ebeb4c4bab2341ef67",
+    "Makefile": "85441889e42bacd17aeadc2503ce24fdbc41cfd43f52c20dfbb09102046cee32",
+    "OWNER_RULES.md": "dd4cf13c59df7845fe511bc1c120c7eb98787ad6e301389855eab9cb33c2a89b",
+    "README.md": "ae07619531c655b6d3cbe4606be57b1760d6ec8b195455b337ae8428d86e934c",
+    "adws/adw_kh_config/kh.config.yaml": "60a4f990a4bb418f3453bb5a04e2a72e42e69aa80876ac8fb54b76e9208f929c",
+    "intents/T1.md": "38b9d8bb64688853f463e6e191159e20b4e11cee98f65c88b1025f341d74ab11",
+    "intents/T2.md": "455cd552c5502245b1092a11934845f76bbd677d27281cfb69b3740bde107270",
+    "intents/T3.md": "a12d9eb40a7363d3af6ed7c519f8615e4cec5213c5310b4fe765d88812815fef",
+    "intents/T4.md": "b71a03e5cef734ff0ae18973699e2297c4299cc5d3cbe8b7902e61711204f9a6",
+    "logreports/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logreports/__main__.py": "ac6ed973837b01aa725c3d8a080df263b72a1a86835c92960feeffe145d548a5",
+    "logreports/core.py": "66243caac5e23ca5b5bcae12e679a5863549ca02e7c4d9200c7552b63c65afdc",
+    "logreports/reports/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logreports/reports/daily.py": "80b0ce3f2728c06d314c4a2d77c3c30b636e07a60f1f9653102ad21b072b68e7",
+    "logreports/reports/failures.py": "9b92c28725e5cc6a7266ee94ec224e5c409a88a61b2a8168e72d613fb5cf43ea",
+    "logreports/reports/latency.py": "44d2a85bec448536009236ce0d396172d32f97cb7e554a1905c70ff95d00b0d7",
+    "logreports/reports/status_counts.py": "6af3e2052b921ea840ac7b26c22579a183140003701fbeb24573002eb2736208",
+    "probes/parser_position.py": "fe8bd22fcd457129e54142d3323d11a31970c32a95ead4c26e8d46a8120552e5",
+    "tests/test_core.py": "2ef010477f18165cca47757be69be45281bff053f9d4891c3112718011ead61e",
+    "tests/test_daily.py": "c989f9f7d6a2c8fd25f99670ac20fcfb5c0b0a1e0153cfb4893c9bd4764e7d01",
+    "tests/test_failures.py": "6623a4219ba28cddd24270e05a03989c41f80c4b4b98a786a6ce4bd550433954",
+    "tests/test_latency.py": "af9ecd1af92ebed89a88a303b47096d1ad4a812bc201452f241ab2d45e35b4a8",
+    "tests/test_status_counts.py": "476d4e9cf0b16f3280a9d52cf159bc4b1aeac5065d8b892735cb0b5b380c4b41"
+  },
+  "before_hashes": {
+    "logreports/reports/daily.py": "4d7b7b1e8a7b845f613d98d9beebb0355e0478c9de269e6ae6c19aa7290bcacf",
+    "logreports/reports/failures.py": "34cf26738ef5a7863b5a65f7bc05716ea6feeec0c7a48ba1badb6daa55770735",
+    "logreports/reports/latency.py": "a55f729ace2e17c1a898555cdb16fb4839489149e196d91bac7d5413ef566c03",
+    "logreports/reports/status_counts.py": "d2a256f1277849163048159dbc4a53ec84441e8a048e61a71e128b2c01b225c0"
+  },
+  "source_fixtures": [
+    {
+      "fixture": "base/INTERFACE.md",
+      "sha256": "e09c4104f4f7d5ffd6a01d3ac86c5bd6ceeab56fbcc078ebeb4c4bab2341ef67"
+    },
+    {
+      "fixture": "base/README.md",
+      "sha256": "ae07619531c655b6d3cbe4606be57b1760d6ec8b195455b337ae8428d86e934c"
+    },
+    {
+      "fixture": "base/intents/T1.md",
+      "sha256": "38b9d8bb64688853f463e6e191159e20b4e11cee98f65c88b1025f341d74ab11"
+    },
+    {
+      "fixture": "base/intents/T2.md",
+      "sha256": "455cd552c5502245b1092a11934845f76bbd677d27281cfb69b3740bde107270"
+    },
+    {
+      "fixture": "base/intents/T3.md",
+      "sha256": "a12d9eb40a7363d3af6ed7c519f8615e4cec5213c5310b4fe765d88812815fef"
+    },
+    {
+      "fixture": "base/intents/T4.md",
+      "sha256": "b71a03e5cef734ff0ae18973699e2297c4299cc5d3cbe8b7902e61711204f9a6"
+    },
+    {
+      "fixture": "base/logreports/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "fixture": "base/logreports/__main__.py",
+      "sha256": "ac6ed973837b01aa725c3d8a080df263b72a1a86835c92960feeffe145d548a5"
+    },
+    {
+      "fixture": "base/logreports/core.py",
+      "sha256": "66243caac5e23ca5b5bcae12e679a5863549ca02e7c4d9200c7552b63c65afdc"
+    },
+    {
+      "fixture": "base/logreports/reports/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "fixture": "base/logreports/reports/daily.py",
+      "sha256": "80b0ce3f2728c06d314c4a2d77c3c30b636e07a60f1f9653102ad21b072b68e7"
+    },
+    {
+      "fixture": "base/logreports/reports/failures.py",
+      "sha256": "9b92c28725e5cc6a7266ee94ec224e5c409a88a61b2a8168e72d613fb5cf43ea"
+    },
+    {
+      "fixture": "base/logreports/reports/latency.py",
+      "sha256": "44d2a85bec448536009236ce0d396172d32f97cb7e554a1905c70ff95d00b0d7"
+    },
+    {
+      "fixture": "base/logreports/reports/status_counts.py",
+      "sha256": "6af3e2052b921ea840ac7b26c22579a183140003701fbeb24573002eb2736208"
+    },
+    {
+      "fixture": "base/tests/test_core.py",
+      "sha256": "2ef010477f18165cca47757be69be45281bff053f9d4891c3112718011ead61e"
+    },
+    {
+      "fixture": "base/tests/test_daily.py",
+      "sha256": "c989f9f7d6a2c8fd25f99670ac20fcfb5c0b0a1e0153cfb4893c9bd4764e7d01"
+    },
+    {
+      "fixture": "base/tests/test_failures.py",
+      "sha256": "6623a4219ba28cddd24270e05a03989c41f80c4b4b98a786a6ce4bd550433954"
+    },
+    {
+      "fixture": "base/tests/test_latency.py",
+      "sha256": "af9ecd1af92ebed89a88a303b47096d1ad4a812bc201452f241ab2d45e35b4a8"
+    },
+    {
+      "fixture": "base/tests/test_status_counts.py",
+      "sha256": "476d4e9cf0b16f3280a9d52cf159bc4b1aeac5065d8b892735cb0b5b380c4b41"
+    },
+    {
+      "fixture": "before/logreports/reports/status_counts.py",
+      "sha256": "d2a256f1277849163048159dbc4a53ec84441e8a048e61a71e128b2c01b225c0"
+    },
+    {
+      "fixture": "before/logreports/reports/latency.py",
+      "sha256": "a55f729ace2e17c1a898555cdb16fb4839489149e196d91bac7d5413ef566c03"
+    },
+    {
+      "fixture": "before/logreports/reports/failures.py",
+      "sha256": "34cf26738ef5a7863b5a65f7bc05716ea6feeec0c7a48ba1badb6daa55770735"
+    },
+    {
+      "fixture": "before/logreports/reports/daily.py",
+      "sha256": "4d7b7b1e8a7b845f613d98d9beebb0355e0478c9de269e6ae6c19aa7290bcacf"
+    }
+  ]
+}

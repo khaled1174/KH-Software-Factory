@@ -1,0 +1,94 @@
+"""Prepare reviewed navigation once, then validate each private handoff.
+
+This is not a shared mutable session or a replacement for ticket planning.
+Every ticket still selects and approves its own context under adw_start.
+"""
+from pathlib import Path
+import hashlib
+
+from . import agents, candidate_integration, execution_budget, infrastructure
+from . import project_context, routing, session, utils, workspace
+from .execution_policy import resolve_bootstrap_policy
+
+
+def _inputs_digest(root, config):
+    root = Path(root).resolve()
+    cfg = agents.load_config(str(root / config))
+    prompts = {}
+    for agent in cfg.agents:
+        prompts[agent.name] = {}
+        for label in ('system', 'user'):
+            path = Path(getattr(agent.prompt_engineering, label))
+            if not path.is_absolute():
+                path = root / path
+            prompts[agent.name][label] = hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+    choices = {}
+    for name in ('models.json', 'routing.json'):
+        path = root / '.kh' / name
+        if path.exists():
+            from .scope import _read_json
+            choices[name] = _read_json(path)
+        else:
+            choices[name] = None
+    inputs = candidate_integration.canonical({'config': cfg.model_dump(mode='json'),
+        'prompts': prompts, 'choices': choices}, [root])
+    return project_context.digest(inputs)
+
+
+def binding(root, config):
+    """Bind ready navigation and current launch inputs, normalizing copy paths."""
+    inspection = project_context.inspect_context(Path(root).resolve())
+    if inspection['status'] != 'ready':
+        raise project_context.ContextBlocked('Shared context is not ready: ' +
+            '; '.join(inspection.get('conflicts', [])))
+    return {'context_digest': inspection['digest'],
+            'inventory_digest': inspection['baseline_digest'],
+            'inputs_sha256': _inputs_digest(root, config)}
+
+
+def require_binding(root, config, expected):
+    if binding(root, config) != expected:
+        raise project_context.ContextBlocked('Shared context or launch inputs changed before dispatch')
+
+
+def prepare(root, config, *, profile=None, use=None, repo_lock=None):
+    """Use the existing read-only bootstrap/review with the owner's lease."""
+    root = Path(root).resolve()
+    cfg = agents.load_config(str(root / config))
+    project_context.sync_commands(root, cfg, repo_lock=repo_lock)
+    inspection = project_context.inspect_context(root)
+    if inspection['status'] == 'blocked':
+        raise project_context.ContextBlocked('; '.join(inspection.get('conflicts', [])))
+    receipt = None
+    initial_inputs = _inputs_digest(root, config)
+    if inspection['status'] != 'ready':
+        cfg, decision = routing.resolve(cfg, root, profile,
+            required_roles={'project_architect', 'plan_reviewer'},
+            overrides=routing.run_choices(cfg, use))
+        for role in ('project_architect', 'plan_reviewer'):
+            agents.resolve(cfg, role).writes = []
+        agents.validate(cfg, ['project_architect', 'plan_reviewer'])
+        run = session.ensure(cfg, repo_lock=repo_lock, fresh=True)
+        try:
+            from .scope import _atomic_json
+            _atomic_json(run.session_dir / 'routing.json', decision)
+            workspace.require_role_cleanup(run)
+            infrastructure.configure(cfg, run.adw_id)
+            infrastructure.run_capability_checks(cfg, utils.operator_env(), run.session_dir)
+            execution_budget.start_budget(run, resolve_bootstrap_policy(cfg, decision), stage='bootstrap')
+            receipt = project_context.bootstrap(run, max_repairs=decision['max_bootstrap_repairs'],
+                                               refresh=inspection['status'] == 'stale')
+            workspace.require_role_cleanup(run)
+            if _inputs_digest(root, config) != initial_inputs:
+                raise project_context.ContextBlocked('Launch inputs changed during shared context preparation')
+        except BaseException as error:
+            run.finish(accepted=False, reason=str(error))
+            raise
+        finally:
+            infrastructure.reset()
+            infrastructure.set_phase_env({})
+        if run.finish() != 0:
+            raise project_context.ContextBlocked('Shared context preparation did not pass')
+        receipt['cost'] = {'usd': run.cost, 'tokens': run.tokens, 'complete': run.cost_known}
+    return {'schema_version': 1, 'binding': binding(root, config),
+            'bootstrap': receipt, 'reused': receipt is None}

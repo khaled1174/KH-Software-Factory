@@ -1,0 +1,14 @@
+{
+  "id": "eval-16-router-stays-subordinate",
+  "title": "Model router cannot retire controller checks or acceptance",
+  "check": {
+    "type": "not_contains",
+    "path": ".claude/skills/kh/references/model-choice.md",
+    "patterns": [
+      "retired",
+      "skip verification",
+      "bypass",
+      "disable.{0,40}(gate|check|review)"
+    ]
+  }
+}

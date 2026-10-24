@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fable Pack Audit"
+  short_description: "Audit Claude-side instruction files for patterns that degrade Claude Fable 5.1"
+  default_prompt: "Use $fable-pack-audit to review the active instruction surfaces and propose a diff without applying it."

@@ -1,0 +1,290 @@
+# Project-owned configuration. Missing quality commands fail closed.
+# Set actual argv commands in quality_checks before test/quality workflows.
+# auto_commit is a compatibility key; execution never creates Git commits.
+defaults:
+  coding_agent: claude_code
+  model: sonnet
+  thinking: medium
+  harness_engineering: []
+  tools:
+  - read
+  - bash
+  - edit
+  - write
+  - grep
+  - find
+  - ls
+  protected_files:
+  - adws/adw_modules/
+  - adws/adw_kh_config/
+  - adws/adw_*.py
+  - adws/adw_data/prompt_engineering/
+  - adws/adw_data/harness_engineering/
+  - .claude/
+  - .kh-observer/
+  # Accepted intents are owner decisions; the post-hoc acceptance check
+  # rejects a task after a protected write rather than blocking the write.
+  - intents/
+  data_dir: adws/adw_data
+  auto_commit: false
+  # Corrections re-enter the same coding-agent session, so a long repair loop is
+  # where window occupancy grows. At rotate_at_percent the controller ends that
+  # session and opens a fresh one, briefed from the repository rather than from
+  # what the old session remembered. Roles in never_rotate fail instead: a
+  # verdict reached from a reconstruction is not an independent review. Rename
+  # these if your roles are named differently.
+  context_guard:
+    enabled: true
+    rotate_at_percent: 75.0
+    max_rotations: 2
+    never_rotate: [reviewer, plan_reviewer]
+  # Which .env variables reach agents and quality commands. The list withholds
+  # every .env variable it does not name from agent processes; [] withholds
+  # them all; omitting the key passes all of them through.
+  # Variables exported in your own shell with a value different from the
+  # file's are never affected; an equal value counts as the file's (just's
+  # `set dotenv-load` exports .env first). Withheld names are printed when the
+  # configuration loads.
+  env_allowlist:
+  - ANTHROPIC_API_KEY
+  quality_checks: {}
+  required_quality_checks:
+  - test
+  - lint
+  - typecheck
+  - build
+  snapshot_max_bytes: 536870912
+  # Disposable untracked directories; tracked project files are never excluded.
+  generated_paths:
+  - '**/.next/'
+  - '**/dist/'
+  - '**/coverage/'
+  - '**/__pycache__/'
+  - '**/.pytest_cache/'
+  - '**/.mypy_cache/'
+  - '**/.ruff_cache/'
+  - '**/.turbo/'
+  - '**/.expo/'
+  - '**/.venv/'
+  - '**/.build/'
+  - '**/.swiftpm/'
+  - '**/.gradle/'
+  - '**/.dart_tool/'
+observability:
+  db: adws/adw_data/kh.db
+  poll_ms: 500
+agents:
+# New role defaults are templates only; record explicit owner choices via setup.
+- name: project_architect
+  model: opus
+  thinking: high
+  color: '#60a5fa'
+  purpose: Propose a project documentation map grounded in observed files; change nothing.
+  prompt_engineering:
+    system: adws/adw_data/prompt_engineering/project_architect/system.md
+    user: adws/adw_data/prompt_engineering/project_architect/user.md
+  writes: []
+  tools:
+  - read
+  - grep
+  - find
+  - ls
+  - bash
+  - write
+- name: plan_reviewer
+  model: opus
+  thinking: high
+  color: '#fb923c'
+  purpose: Independently review the exact plan or context proposal; change nothing.
+  prompt_engineering:
+    system: adws/adw_data/prompt_engineering/plan_reviewer/system.md
+    user: adws/adw_data/prompt_engineering/plan_reviewer/user.md
+  writes: []
+  tools:
+  - read
+  - grep
+  - find
+  - ls
+  - bash
+  - write
+- name: planner
+  model: opus
+  thinking: xhigh
+  color: '#a78bfa'
+  purpose: Turn a request into a plan the builder can implement without asking questions.
+  prompt_engineering:
+    system: adws/adw_data/prompt_engineering/planner/system.md
+    user: adws/adw_data/prompt_engineering/planner/user.md
+  writes:
+  - specs/
+  tools:
+  - read
+  - grep
+  - find
+  - ls
+  - bash
+  - write
+- name: builder
+  color: '#22d3ee'
+  purpose: Implement the plan exactly; report every changed file in the envelope.
+  prompt_engineering:
+    system: adws/adw_data/prompt_engineering/builder/system.md
+    user: adws/adw_data/prompt_engineering/builder/user.md
+  tools:
+  - read
+  - grep
+  - find
+  - ls
+  - bash
+  - edit
+  - write
+- name: scout
+  model: haiku
+  thinking: low
+  color: '#fbbf24'
+  purpose: Find and report where things live; change nothing.
+  prompt_engineering:
+    system: adws/adw_data/prompt_engineering/scout/system.md
+    user: adws/adw_data/prompt_engineering/scout/user.md
+  writes: []
+  tools:
+  - read
+  - grep
+  - find
+  - ls
+  - bash
+  - write
+- name: reviewer
+  model: opus
+  thinking: high
+  color: '#fb7185'
+  purpose: Confirm that what was built is what was asked for; change nothing.
+  prompt_engineering:
+    system: adws/adw_data/prompt_engineering/reviewer/system.md
+    user: adws/adw_data/prompt_engineering/reviewer/user.md
+  writes: []
+  tools:
+  - read
+  - grep
+  - find
+  - ls
+  - bash
+  - write
+- name: documenter
+  model: haiku
+  thinking: minimal
+  color: '#e879f9'
+  purpose: Write up the change that was just made, from the diff; document only.
+  prompt_engineering:
+    system: adws/adw_data/prompt_engineering/documenter/system.md
+    user: adws/adw_data/prompt_engineering/documenter/user.md
+  writes:
+  - app_docs/
+  - docs/
+  - '**/*.md'
+  - '*.md'
+  tools:
+  - read
+  - grep
+  - find
+  - ls
+  - bash
+  - write
+  - edit
+
+# Explicit profile choices are project-owned. current inherits configured roles.
+# Per-role model/effort chosen by the owner at project start is recorded by
+# `uv run adws/adw_setup_models.py` into .kh/models.json, not by editing here.
+routing:
+  default_profile: current
+  profiles:
+    current:
+      roles: {}
+      required_checks: []
+      max_repairs: 2
+      max_plan_repairs: 2
+      max_bootstrap_repairs: 2
+# Retired compatibility setting; every round uses one independent combined review.
+review:
+  panel: []
+
+# Shared controller budget; omitted send/deadline fields derive from mode/profile.
+# Explicit values may tighten or deliberately override those defaults.
+execution:
+  # Advisory planning recipe; never a model router or permission grant.
+  task_kind: generic
+  # Closing documentation uses the configured documenter, with no source-write grant.
+  # Existing configs that omit this key remain unconfigured for this stage.
+  documentation:
+    enabled: true
+  max_output_corrections: 6
+  light_max_files: 8
+  light_risk_paths: []
+  # A send that fails on a provider outage (overloaded, at capacity, 5xx,
+  # dropped connection) is repeated in the same session after 60 s, 120 s,
+  # 240 s ... up to transient_retries times; usage limits, quotas, bad keys and
+  # timeouts are not. 0 turns it off.
+  transient_retries: 3
+  transient_retry_delay_seconds: 60
+  # A re-run of an unchanged task reuses the plan an earlier run approved.
+  reuse_approved_plan: true
+  # A run that stops before acceptance keeps its unaccepted work in
+  # .kh/work/<task>/; the next run of the task continues it.
+  resume_failed_builds: true
+  # Full mode: supervised builder continuations, progressive repair windows
+  # and independently approved plan amendments share one deadline and
+  # cumulative counters. Zero retains the original bounded stop behavior.
+  # Cost is reported only; it never stops a continuation.
+  recovery_rounds: 2
+  # max_model_sends: 10
+  # deadline_seconds: 900
+  # Work that touches a sensitive category — money, auth, schema (destructive
+  # SQL), size (> max_changed_lines added+removed lines; 0 disables) — never
+  # pauses the run. mode: report (default) makes the independent reviewer
+  # justify it, lets the task promote and close itself, and lists it in the
+  # receipt and task report for you after completion. mode: hold stops before
+  # promotion unless the intent lists the category under "Approved sensitive
+  # changes" (stops batches; opt-in). `categories` replaces the defaults.
+  # See references/config.md.
+  owner_review:
+    enabled: true
+    mode: report
+    max_changed_lines: 400
+  # Moves that lower the quality bar in the verified delta — a skipped or
+  # deleted test, fewer assertions, a silenced checker (# noqa, # type: ignore,
+  # eslint-disable…), a stub or TODO, a loosened coverage/warning threshold —
+  # become requirements the independent reviewer must justify.
+  floor_guard:
+    enabled: true
+  # The controller records every shell command a coding agent runs (exact
+  # text, timing, outcome, complete output) and classifies it by these
+  # patterns, never by an agent's label. A strict class needs an authentic exit
+  # status and unfiltered output; a builder whose strict record is incomplete
+  # is told in the same session to re-run it. Omit `classes` for the defaults
+  # (test, format, lint, probe strict; exploratory_compile excerpt-only).
+  # Owner exceptions for specific past invocations live in .kh/dispositions.json.
+  # See references/config.md#command-evidence.
+  command_policy:
+    enabled: true
+    require_complete_strict_records: true
+  # Infrastructure is a capability apart from file scope. Give agents a
+  # non-superuser database URL (worker_env), remove admin credentials
+  # (withhold_env), probe that they really lack the capability before the task
+  # (capability_checks). A phase that executes docker/podman restart|stop|kill|
+  # rm|down|..., systemctl stop|restart, pg_ctl or ALTER SYSTEM stops.
+  # deny_executables (e.g. [docker]) also hides executables from agents.
+  # See references/config.md#infrastructure-boundary.
+  infrastructure:
+    enabled: true
+    # withhold_env: [ADMIN_DATABASE_URL, DOCKER_HOST]
+    # worker_env: {DATABASE_URL: "${TEST_DATABASE_URL}"}
+    # capability_checks:
+    #   - name: test-role-not-superuser
+    #     argv: [psql, "${DATABASE_URL}", -tAc, "select rolsuper from pg_roles where rolname = current_user"]
+    #     expect_stdout: "f"
+    # resource_prefix: kh_
+  # warn: report whether deadline_seconds fits the permitted build/check/review
+  # cycles at observed durations; refuse: do not start when it does not; off.
+  # Independently of this, no build cycle or review starts that the remaining
+  # time cannot finish (the checked candidate is kept for --review-existing).
+  timing_preflight: warn

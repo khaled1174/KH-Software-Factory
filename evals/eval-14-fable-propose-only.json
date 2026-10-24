@@ -1,0 +1,11 @@
+{
+  "id": "eval-14-fable-propose-only",
+  "title": "fable-pack-audit proposes diffs and never applies them",
+  "check": {
+    "type": "contains",
+    "path": ".claude/skills/fable-pack-audit/SKILL.md",
+    "needles": [
+      "does not apply it unless asked"
+    ]
+  }
+}

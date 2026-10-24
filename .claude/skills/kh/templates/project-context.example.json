@@ -1,0 +1,38 @@
+{
+  "description": "Illustrative context proposal fields; not an approval or ready index. The controller generates real digests and review receipts.",
+  "suggested_documents": [
+    "CLAUDE.md",
+    "AGENTS.md",
+    "docs/agent-guide/project-map.md",
+    "docs/agent-guide/testing.md",
+    "docs/agent-guide/rules.md"
+  ],
+  "conditional_documents": [
+    {
+      "path": "docs/agent-guide/csv-export.md",
+      "purpose": "guide",
+      "status": "active",
+      "applies_to": [
+        "src/**"
+      ],
+      "read_when": [
+        {
+          "id": "csv-change",
+          "condition": "Read only when changing CSV export or fixing empty downloads."
+        }
+      ]
+    }
+  ],
+  "new_document_allowlist": [
+    "CLAUDE.md",
+    "AGENTS.md",
+    "docs/agent-guide/**/*.md"
+  ],
+  "existing_documents": "Owner documents preserved verbatim; unchanged generated documents may be independently reviewed and refreshed. Root rules are essential; nested instructions retain directory applicability.",
+  "catalog": "The controller generates docs/agent-guide/conditional_docs.md after approval from the reviewed read_when metadata. Do not submit a catalog placeholder.",
+  "documentation_directories": {
+    "docs/agent-guide/": "Current guides and conditional_docs.md",
+    "app_docs/": "New historical implementation records; never auto-loaded as current guides"
+  },
+  "commands": "The controller generates docs/agent-guide/commands.md from configured quality checks, required checks and observed package.json scripts."
+}

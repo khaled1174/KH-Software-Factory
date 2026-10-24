@@ -1,0 +1,11 @@
+{
+  "id": "eval-19-observer-eval-gate",
+  "title": "Accepted skill improvements require the eval suite before install",
+  "check": {
+    "type": "contains",
+    "path": ".claude/skills/task-observer/SKILL.md",
+    "needles": [
+      "run_evals.py"
+    ]
+  }
+}

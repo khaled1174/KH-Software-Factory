@@ -1,0 +1,243 @@
+{
+  "scope": {
+    "original_request": "Implement the status_counts log report. Return counts for all four HTTP classes 2xx, 3xx, 4xx, 5xx including zero counts. Empty input yields all zeros. Add focused tests and document the report. Preserve the core loader and CLI interface.",
+    "deliverables": [
+      "Return counts for all four HTTP classes 2xx, 3xx, 4xx, 5xx including zero counts. Empty input yields all zeros.",
+      "Focused tests and scoped report documentation"
+    ],
+    "non_goals": [],
+    "constraints": [],
+    "allowed_paths": [
+      "logreports/reports/status_counts.py",
+      "tests/test_status_counts.py",
+      "docs/reports/status_counts.md",
+      "app_docs/status_counts.md"
+    ],
+    "plan_paths": null,
+    "required_checks": [
+      "test",
+      "build"
+    ],
+    "review_required": true
+  },
+  "plan": {
+    "status": "success",
+    "summary": "Plan to implement status_counts.summarize as a fixed-key dict ('2xx','3xx','4xx','5xx') initialised to zero and incremented by status // 100. Adds a focused unittest module and app_docs/status_counts.md. The loader, CLI and all other files are untouched.",
+    "artifacts": [
+      "/private/var/folders/j3/gncvd3jn4rq3gtcsq8x6bwsm0000gn/T/kh-agent-fxf20w43/workspace/adws/adw_data/sessions/26ab9c76/context_handoff/26ab9c76_10_plan_1/planner/plan.md"
+    ],
+    "artifact_declarations": [
+      {
+        "path": "/private/var/folders/j3/gncvd3jn4rq3gtcsq8x6bwsm0000gn/T/kh-agent-fxf20w43/workspace/adws/adw_data/sessions/26ab9c76/context_handoff/26ab9c76_10_plan_1/planner/plan.md",
+        "kind": "report",
+        "base": "evidence",
+        "invocation_id": "",
+        "producing_phase": "",
+        "sha256": "",
+        "bytes": null
+      }
+    ],
+    "notes_for_next_agent": "Conditional guide docs/agent-guide/status-counts-report.md was read (condition status-counts-report matched). Call summarize directly in tests, because __main__ parses args at import time. docs/reports/status_counts.md is inside owner scope but is not a valid documentation-contract target, so the only doc target is app_docs/status_counts.md. docs/agent-guide/status-counts-report.md is outside the owner's allowed paths and will be stale after implementation (it still says NotImplementedError and 'proposed'), so the controller should regenerate it. The builder has no native test grant, so the controller runs the test and build checks.",
+    "observations": [
+      {
+        "type": "stale_guide",
+        "detail": "docs/agent-guide/status-counts-report.md describes the report as unimplemented; it needs regeneration after the build."
+      },
+      {
+        "type": "known_gap",
+        "detail": "logreports/__main__.py has no main() or __main__ guard, so the CLI cannot be tested in-process."
+      }
+    ],
+    "acceptance_criteria": [
+      "summarize(records) returns a dict with exactly the keys '2xx','3xx','4xx','5xx', each an int count of records whose status // 100 matches.",
+      "Classes with no records are present with value 0, and summarize([]) returns all four keys with value 0.",
+      "The input list and its dicts are not mutated, and the result is JSON-serializable.",
+      "tests/test_status_counts.py covers empty input, one record per class, mixed counts, the boundaries 200/299/300/399/400/499/500/599, zero-count classes with an exact key set, input unchanged, and json.dumps success.",
+      "app_docs/status_counts.md documents the report: output keys, semantics, zero and empty behavior, examples and CLI usage.",
+      "logreports/core.py and logreports/__main__.py are unchanged, and only the allowed paths are modified.",
+      "The controller's test and build checks pass."
+    ],
+    "allowed_paths": [
+      "logreports/reports/status_counts.py",
+      "tests/test_status_counts.py",
+      "app_docs/status_counts.md"
+    ],
+    "required_test_commands": [],
+    "commit_message": "Implement status_counts report with tests and documentation",
+    "documentation": {
+      "decision": "required",
+      "reason": "The request explicitly asks to document the report. Its output keys and zero-count semantics are a user-visible CLI contract that needs a stable record.",
+      "paths": [
+        "app_docs/status_counts.md"
+      ]
+    },
+    "context_selection": [
+      {
+        "path": "docs/agent-guide/status-counts-report.md",
+        "document_digest": "3c0e66ceff7b3f805dd15e71d58c2036dab7880762c9121d789aa4a93cc70585",
+        "decision": "read",
+        "condition_ids": [
+          "status-counts-report"
+        ],
+        "reason": "The task implements and tests the status_counts report and its output keys, which matches the condition. The guide supplied the contract, design notes and test list used in this plan."
+      }
+    ],
+    "steps": [
+      {
+        "id": "S1",
+        "action": "Replace the NotImplementedError stub in logreports/reports/status_counts.py. summarize builds a new dict {'2xx':0,'3xx':0,'4xx':0,'5xx':0}, then for each record increments f'{status // 100}xx' if that key exists. It does not mutate input and does not add keys.",
+        "paths": [
+          "logreports/reports/status_counts.py"
+        ],
+        "requirement_ids": [
+          "R1",
+          "R2"
+        ],
+        "depends_on": [],
+        "validation": [
+          "Controller build check compiles the module.",
+          "Tests in S2 pass."
+        ]
+      },
+      {
+        "id": "S2",
+        "action": "Add tests/test_status_counts.py (unittest, building record dicts directly). Cover empty input, one record per class, mixed counts, class boundaries, zero-count classes with an exact key set, input unchanged (deepcopy compare), json.dumps success and int values.",
+        "paths": [
+          "tests/test_status_counts.py"
+        ],
+        "requirement_ids": [
+          "R1",
+          "R3"
+        ],
+        "depends_on": [
+          "S1"
+        ],
+        "validation": [
+          "Controller test check: python3 -B -m unittest discover -s tests passes."
+        ]
+      },
+      {
+        "id": "S3",
+        "action": "Add app_docs/status_counts.md documenting purpose, output keys, status // 100 semantics, zero-count and empty-input behavior, examples, CLI invocation, the loader 200..599 invariant and the test location.",
+        "paths": [
+          "app_docs/status_counts.md"
+        ],
+        "requirement_ids": [
+          "R1",
+          "R3"
+        ],
+        "depends_on": [
+          "S1"
+        ],
+        "validation": [
+          "The document is nonempty and consistent with the implemented behavior and key spelling.",
+          "git diff shows no change to logreports/core.py or logreports/__main__.py."
+        ]
+      }
+    ],
+    "requirement_coverage": {
+      "R1": [
+        "S1",
+        "S2",
+        "S3"
+      ],
+      "R2": [
+        "S1"
+      ],
+      "R3": [
+        "S2",
+        "S3"
+      ]
+    },
+    "risks": [
+      "Statuses outside 200..599 cannot come from the loader; summarize ignores them rather than adding keys or raising, which keeps the output keys fixed.",
+      "docs/agent-guide/status-counts-report.md becomes stale after implementation and is outside the builder's write scope."
+    ],
+    "assumptions": [
+      "The loader guarantees int status in 200..599, as stated in INTERFACE.md and core.py.",
+      "The builder cannot run tests natively (native_test_contract lists no commands), so the controller runs test and build.",
+      "docs/reports/status_counts.md is not a valid documentation-contract target, so app_docs/status_counts.md is the single documentation target."
+    ],
+    "required_checks": [
+      "test",
+      "build"
+    ],
+    "finding_responses": []
+  },
+  "guide": {
+    "path": "docs/agent-guide/status-counts-report.md",
+    "digest": "3c0e66ceff7b3f805dd15e71d58c2036dab7880762c9121d789aa4a93cc70585",
+    "applies_to": [
+      "logreports/reports/status_counts.py",
+      "tests/test_status_counts.py",
+      "app_docs/status_counts.md"
+    ],
+    "purpose": "guide",
+    "status": "active",
+    "topics": [
+      "status_counts",
+      "http-status-classes",
+      "report"
+    ],
+    "supersedes": [],
+    "source_revision": "",
+    "read_when": [
+      {
+        "id": "status-counts-report",
+        "condition": "Read only when implementing, changing or testing the status_counts report or its output keys."
+      }
+    ],
+    "managed": true,
+    "provenance": "controller-generated",
+    "source_digests": {
+      "logreports/reports/status_counts.py": "d2a256f1277849163048159dbc4a53ec84441e8a048e61a71e128b2c01b225c0"
+    }
+  },
+  "guide_content": "# status_counts report\n\nGuide for `logreports/reports/status_counts.py`. General rules are in `architecture.md` and `INTERFACE.md`; this guide adds only what is specific to this report.\n\n## Current state\n\nWhen this guide was written, `summarize` raised `NotImplementedError` and no `tests/test_status_counts.py` existed. Check the source before relying on that; if the module is implemented this guide must be regenerated.\n\n## Contract (from accepted intent T1; **proposed** until implemented)\n\n- `summarize(records)` returns an object with exactly four keys: `\"2xx\"`, `\"3xx\"`, `\"4xx\"`, `\"5xx\"`.\n- Each value is the integer number of records whose `status // 100` equals that class.\n- Classes with no records are present with value `0`.\n- Empty input returns all four keys with value `0`.\n- The result is JSON-serializable and the input is not mutated (`INTERFACE.md`).\n\nExample:\n\n```python\nsummarize([\n    {\"service\": \"api\", \"status\": 200, ...},\n    {\"service\": \"api\", \"status\": 204, ...},\n    {\"service\": \"web\", \"status\": 503, ...},\n])\n# {\"2xx\": 2, \"3xx\": 0, \"4xx\": 0, \"5xx\": 1}\n\nsummarize([])\n# {\"2xx\": 0, \"3xx\": 0, \"4xx\": 0, \"5xx\": 0}\n```\n\nThe key spelling `\"2xx\"` .. `\"5xx\"` is taken literally from the intent. Keep it stable once implemented because the CLI output (`python3 -m logreports input.jsonl --report status_counts`) exposes it.\n\n## Design notes\n\n- The loader restricts `status` to 200..599 (`INTERFACE.md`), so every valid record falls in exactly one of the four classes. A 1xx or out-of-range status cannot occur from the loader.\n- Start from a dict containing all four keys at zero rather than building it from observed statuses, so zero counts are guaranteed.\n- The CLI already routes `--report status_counts` to this module; no loader or CLI change is needed.\n\n## Tests (`tests/test_status_counts.py`)\n\nCover at least: empty input; one record per class; mixed counts; class boundaries (200, 299, 300, 399, 400, 499, 500, 599); a result with zero-count classes; input unchanged after the call; `json.dumps` of the result succeeds.\n\n## Documentation\n\nThe task permits report documentation at `docs/reports/status_counts.md` or `app_docs/status_counts.md`. This guide is the current agent-facing description; a per-task record belongs under `app_docs/`, not here.\n",
+  "source_path": "logreports/reports/status_counts.py",
+  "source_content": "\"\"\"Planned report: status_counts.\"\"\"\ndef summarize(records):\n    raise NotImplementedError(\"status_counts report is not implemented\")\n",
+  "replies": [
+    {
+      "status": "fail",
+      "documents": [
+        {
+          "path": "app_docs/status_counts.md",
+          "purpose": "change_record",
+          "status": "historical",
+          "topics": [
+            "status_counts",
+            "http-status-classes",
+            "report"
+          ],
+          "applies_to": [
+            "logreports/reports/status_counts.py",
+            "tests/test_status_counts.py"
+          ],
+          "content": "# status_counts report\n\nCounts records by HTTP status class. Implemented in `logreports/reports/status_counts.py`; tests in `tests/test_status_counts.py`.\n\n## Output\n\n`summarize(records)` returns an object with exactly four keys: `\"2xx\"`, `\"3xx\"`, `\"4xx\"`, `\"5xx\"`. Each value is the integer number of records whose `status // 100` equals that class.\n\n- Classes with no records are present with value `0`.\n- Empty input returns all four keys with value `0`.\n- The input is not mutated and the result is JSON-serializable.\n\nThe loader guarantees `status` is an int in 200..599, so every record falls in exactly one class. The counts start from a dict with all four keys at zero, so zero counts are guaranteed.\n\n## Examples\n\n```python\nsummarize([{\"status\": 200, ...}, {\"status\": 204, ...}, {\"status\": 503, ...}])\n# {\"2xx\": 2, \"3xx\": 0, \"4xx\": 0, \"5xx\": 1}\n\nsummarize([])\n# {\"2xx\": 0, \"3xx\": 0, \"4xx\": 0, \"5xx\": 0}\n```\n\n## CLI\n\n```\npython3 -m logreports input.jsonl --report status_counts\n```\n\nPrints the result as JSON with sorted keys, e.g. `{\"2xx\": 2, \"3xx\": 0, \"4xx\": 0, \"5xx\": 1}`. The loader and CLI are unchanged.\n\n## Tests\n\n`tests/test_status_counts.py` covers: empty input; one record per class; mixed counts; the boundaries 200, 299, 300, 399, 400, 499, 500, 599; zero-count classes with an exact key set; input unchanged after the call; `json.dumps` success with int values.\n\nRun with `python3 -B -m unittest discover -s tests`.\n"
+        }
+      ],
+      "confirmed_documents": []
+    },
+    {
+      "status": "fail",
+      "documents": [
+        {
+          "path": "app_docs/status_counts.md",
+          "purpose": "change_record",
+          "status": "historical",
+          "topics": [
+            "status_counts",
+            "http-status-classes",
+            "report"
+          ],
+          "applies_to": [
+            "logreports/reports/status_counts.py",
+            "tests/test_status_counts.py"
+          ],
+          "content": "# status_counts report\n\nCounts records by HTTP status class. Implemented in `logreports/reports/status_counts.py`; tests in `tests/test_status_counts.py`.\n\n## Output\n\n`summarize(records)` returns an object with exactly four keys: `\"2xx\"`, `\"3xx\"`, `\"4xx\"`, `\"5xx\"`. Each value is the integer number of records whose `status // 100` equals that class.\n\n- Classes with no records are present with value `0`.\n- Empty input returns all four keys with value `0`.\n- The input is not mutated and the result is JSON-serializable.\n\nThe loader guarantees `status` is an int in 200..599, so every record falls in exactly one class. The counts start from a dict with all four keys at zero, so zero counts are guaranteed.\n\n## Examples\n\n```python\nsummarize([{\"status\": 200, ...}, {\"status\": 204, ...}, {\"status\": 503, ...}])\n# {\"2xx\": 2, \"3xx\": 0, \"4xx\": 0, \"5xx\": 1}\n\nsummarize([])\n# {\"2xx\": 0, \"3xx\": 0, \"4xx\": 0, \"5xx\": 0}\n```\n\n## CLI\n\n```\npython3 -m logreports input.jsonl --report status_counts\n```\n\nPrints the result as JSON with sorted keys, e.g. `{\"2xx\": 2, \"3xx\": 0, \"4xx\": 0, \"5xx\": 1}`. The loader and CLI are unchanged.\n\n## Tests\n\n`tests/test_status_counts.py` covers: empty input; one record per class; mixed counts; the boundaries 200, 299, 300, 399, 400, 499, 500, 599; zero-count classes with an exact key set; input unchanged after the call; `json.dumps` success with int values.\n\nRun with `python3 -B -m unittest discover -s tests`.\n"
+        }
+      ],
+      "confirmed_documents": []
+    }
+  ]
+}

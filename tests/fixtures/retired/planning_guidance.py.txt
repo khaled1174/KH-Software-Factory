@@ -1,0 +1,31 @@
+"""Advisory task-kind recipes; never scheduling, routing or permission authority."""
+RECIPES = {
+    'generic': {
+        'evidence': ['behavioral_acceptance', 'affected_dependencies'],
+        'questions': ['State the user-visible result and non-goals.',
+                      'Inspect callers, consumers and support files before freezing paths.']},
+    'bug': {
+        'evidence': ['observed_vs_expected', 'reproduction', 'root_cause', 'before_after_regression'],
+        'questions': ['Record the observed and expected behavior with a concrete input.',
+                      'Reproduce safely before editing and trace the first wrong boundary.',
+                      'Plan a regression that distinguishes the broken and corrected behavior; cite any reproduction limit.']},
+    'feature': {
+        'evidence': ['user_journey', 'integration', 'negative_paths'],
+        'questions': ['Describe the user journey and observable acceptance outcome.',
+                      'Identify existing interfaces, integration dependencies and necessary support files.',
+                      'Include invalid/empty states and actual outcome assertions, not screenshots alone.']},
+    'maintenance': {
+        'evidence': ['compatibility', 'before_after_behavior', 'migration_or_rollback'],
+        'questions': ['State what behavior must remain compatible.',
+                      'Separate behavior-preserving edits from intentional changes.',
+                      'Name migration/rollback evidence when applicable; do not invent a migration.']},
+}
+
+
+def for_kind(kind='generic'):
+    if kind not in RECIPES:
+        raise ValueError('Unknown planning task kind: ' + str(kind))
+    recipe = RECIPES[kind]
+    return {'kind': kind, 'evidence': list(recipe['evidence']), 'questions': list(recipe['questions']),
+            'changes_permissions': False,
+            'authority': 'Advisory support only. Original requirements, owner scope, required checks and independent review remain mandatory.'}

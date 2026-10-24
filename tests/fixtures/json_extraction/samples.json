@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "samples": [
+    {
+      "response_file": "response-01.txt",
+      "response_sha256": "866555e7bc643ec4f282760ac09b21a5c16bd39bc39b0e18528574bfe66120e3",
+      "expected_object_sha256": "81725f77511c2c2f9340006e852fec4b17cf9cf49b4649fcd5d03c823b8fd705"
+    },
+    {
+      "response_file": "response-02.txt",
+      "response_sha256": "44f7a38267cc763186f6b6358b1da8a844a8d88a72a7d19e5ea0f09f5e1b22f2",
+      "expected_object_sha256": "8985c37ccf561d0c708f2b5b782fbd26db7301ca6d6ebb7db2fa00ea5c949f34"
+    },
+    {
+      "response_file": "response-03.txt",
+      "response_sha256": "12af1fd72cc792de712977442cf966bf3d4ff65266d4e0755b0c8709ebac75a0",
+      "expected_object_sha256": "00c26188be825495614c8574e16e63f1a63349dc23c47d744f6ff10016511140"
+    },
+    {
+      "response_file": "response-04.txt",
+      "response_sha256": "0b5816301240199ee83346c19609c1716a4d106b1cf7a55e894660180318d276",
+      "expected_object_sha256": "964572b2446362b3d2abc100e6de48e486932d9aff5ce5b6ae9373b7efb14734"
+    },
+    {
+      "response_file": "response-05.txt",
+      "response_sha256": "db69f7947555248b3db2928015d81cae9c0819745618268d8829102d42514163",
+      "expected_object_sha256": "3b5552e05dc57a059fd08888ad7c0d44ba46f675f39ae6f8babfff433e8fcb40"
+    }
+  ]
+}

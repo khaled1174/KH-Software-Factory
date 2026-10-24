@@ -1,0 +1,12 @@
+{
+  "id": "eval-22-vendor-pinned",
+  "title": "Vendored relay is pinned with provenance and license",
+  "check": {
+    "type": "contains",
+    "path": "vendor/delegate-skills/PROVENANCE.json",
+    "needles": [
+      "b781ee2e23089630e2fbee1cfd6174afe4edeb76",
+      "MIT"
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "eval-04-core-skills-ship",
+  "title": "Core and audit skills are present for install parity",
+  "check": {
+    "type": "files_exist",
+    "paths": [
+      ".claude/skills/kh/SKILL.md",
+      ".claude/skills/kh/references/model-choice.md",
+      ".claude/skills/kh-scope-guard/SKILL.md",
+      ".claude/skills/fable-pack-audit/SKILL.md",
+      ".claude/skills/astra-pack-audit/SKILL.md",
+      ".claude/skills/task-observer/SKILL.md"
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+name: Verify KH Software Factory
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+  workflow_dispatch: {}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Prepare pinned Bun for actual dashboard API tests
+        run: |
+          npm install --prefix "$RUNNER_TEMP/kh-bun" --ignore-scripts --no-audit --no-fund @oven/bun-linux-x64@1.4.2
+          echo "KH_BUN=$RUNNER_TEMP/kh-bun/node_modules/@oven/bun-linux-x64/bin/bun" >> "$GITHUB_ENV"
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python scripts/run_evals.py
+      - name: Measure deterministic call-count baseline
+        run: python -B tests/test_next_call_counts.py --benchmark-contexts "$RUNNER_TEMP/kh-bench.json"
+      - name: Upload deterministic call-count baseline
+        uses: actions/upload-artifact@v4
+        with:
+          name: kh-call-counts
+          path: ${{ runner.temp }}/kh-bench.json
+          if-no-files-found: error
+      # Prove the shipped archive installs, not just the checkout (ZIP drops empty dirs).
+      - run: python scripts/package.py --output /tmp/kh-software-factory.zip
+      - name: Upload full archive verification output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kh-release-verification
+          path: /tmp/kh-software-factory-verification
+          if-no-files-found: warn
+      - run: '"$KH_BUN" install --frozen-lockfile'
+        working-directory: .claude/skills/kh/apps/visualizer
+      - run: '"$KH_BUN" run build'
+        working-directory: .claude/skills/kh/apps/visualizer
+      - run: '"$KH_BUN" run lint'
+        working-directory: .claude/skills/kh/apps/visualizer

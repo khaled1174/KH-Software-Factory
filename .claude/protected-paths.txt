@@ -1,0 +1,7 @@
+# The manifest, pinned vendor code and protection mechanism require owner authorization.
+# The living verification document is not a protected path.
+MANIFEST.sha256
+vendor/
+.claude/settings.json
+.claude/hooks/
+.claude/protected-paths.txt

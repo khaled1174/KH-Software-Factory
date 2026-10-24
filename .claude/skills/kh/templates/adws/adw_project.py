@@ -8,7 +8,6 @@ from __future__ import annotations
 import argparse
 from contextlib import contextmanager
 from datetime import datetime, timezone
-import fcntl
 import json
 import os
 from pathlib import Path
@@ -18,6 +17,7 @@ import sys
 
 from adw_modules import git_helper, project, session
 from adw_modules.scope import _parent_fd, _read_json
+import fcntl
 
 
 CONTROL_SCHEMA_VERSION = 1

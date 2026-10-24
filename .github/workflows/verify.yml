@@ -7,11 +7,15 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.12']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: ${{ matrix.python }}
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -26,7 +30,7 @@ jobs:
       - name: Upload deterministic call-count baseline
         uses: actions/upload-artifact@v4
         with:
-          name: kh-call-counts
+          name: kh-call-counts-py${{ matrix.python }}
           path: ${{ runner.temp }}/kh-bench.json
           if-no-files-found: error
       # Prove the shipped archive installs, not just the checkout (ZIP drops empty dirs).
@@ -35,7 +39,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: kh-release-verification
+          name: kh-release-verification-py${{ matrix.python }}
           path: /tmp/kh-software-factory-verification
           if-no-files-found: warn
       - run: '"$KH_BUN" install --frozen-lockfile'

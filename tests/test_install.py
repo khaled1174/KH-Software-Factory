@@ -52,6 +52,32 @@ class InstallTests(unittest.TestCase):
         return {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
                 for p in root.rglob('*') if p.is_file()}
 
+    def test_native_windows_entrypoints_explain_wsl2_before_platform_imports(self):
+        launcher = '''
+import argparse, ctypes, os, shutil, sys
+from pathlib import Path
+path = Path(sys.argv[1])
+code = compile(path.read_bytes(), str(path), 'exec')
+sys.path.insert(0, str(path.parent))
+sys.modules['fcntl'] = None
+os.name = 'nt'
+sys.argv = [str(path), '--help']
+exec(code, {'__name__': '__main__', '__file__': str(path)})
+'''
+        entries = [ROOT / 'install.py', ROOT / '.claude/skills/kh/scripts/install.py',
+                   *sorted((ROOT / '.claude/skills/kh/templates/adws').glob('*.py'))]
+        before = self.hashes(self.target)
+        for path in entries:
+            with self.subTest(entry=path.relative_to(ROOT).as_posix()):
+                result = subprocess.run([sys.executable, '-B', '-c', launcher, str(path)],
+                                        cwd=self.target, capture_output=True, text=True, timeout=10)
+                self.assertEqual(1, result.returncode, result.stderr)
+                self.assertEqual('', result.stdout)
+                self.assertEqual(1, len(result.stderr.splitlines()), result.stderr)
+                for term in ('Windows', 'WSL2', 'WSL1', 'Ubuntu'):
+                    self.assertIn(term, result.stderr)
+        self.assertEqual(before, self.hashes(self.target))
+
     def test_fresh_paths_spaces_source_preserved_and_idempotent(self):
         before = self.hashes(self.package)
         report = self.run_install()

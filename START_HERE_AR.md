@@ -5,6 +5,51 @@
 [كتالوج الأوامر](COMMANDS.md) للمداخل المدعومة و[المعمارية](docs/ARCHITECTURE.md)
 لحدود التشغيل. تنزيل الحزمة لا يرحّل مشروعًا آخر تلقائيًا.
 
+## المتطلبات
+
+- macOS، أو Linux مع `bubblewrap` و`socat`، أو Windows من خلال WSL2 مع Ubuntu. لا يدعم المشروع WSL1 أو Windows الأصلي.
+- Python 3.10 أو أحدث، وGit و`uv` داخل البيئة التي تشغّل KH.
+- Claude Code مثبّت ومسجّل الدخول داخل البيئة نفسها. ثبّت فيها أيضًا أي أداة مزوّد إضافية تختارها.
+
+### Windows عبر WSL2
+
+ثبّت Ubuntu من PowerShell بصلاحيات المسؤول. أعد تشغيل Windows إذا طُلب ذلك،
+وأكمل إعداد مستخدم Ubuntu أول مرة:
+
+```powershell
+wsl --install -d Ubuntu
+```
+
+ثم اختر WSL2 وتأكد أن عمود `VERSION` الخاص بـUbuntu يعرض `2`:
+
+```powershell
+wsl --set-version Ubuntu 2
+wsl --list --verbose
+```
+
+افتح طرفية Ubuntu وثبّت أدوات Linux داخلها:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y python3 python3-venv bubblewrap socat curl git
+curl -LsSf https://astral.sh/uv/install.sh | sh
+curl -fsSL https://claude.ai/install.sh | bash
+export PATH="$HOME/.local/bin:$PATH"
+mkdir -p ~/projects
+cd ~/projects
+python3 --version
+claude
+```
+
+تأكد أن Python بالإصدار 3.10 أو أحدث، وأكمل تسجيل الدخول إلى Claude Code.
+استنسخ KH ومشروعك أو فك حزمهما داخل `~/`، مثل `~/projects/`، ولا تستخدم
+`/mnt/c`. نفّذ بقية أوامر التثبيت والتشغيل من داخل Ubuntu.
+راجع [تثبيت WSL من Microsoft](https://learn.microsoft.com/en-us/windows/wsl/install)
+و[إرشادات نظام الملفات](https://learn.microsoft.com/en-us/windows/wsl/filesystems)،
+و[بدء Claude Code](https://code.claude.com/docs/en/quickstart)
+و[متطلبات الساندبوكس](https://code.claude.com/docs/en/sandboxing)،
+و[تثبيت uv](https://docs.astral.sh/uv/getting-started/installation/).
+
 ## التثبيت
 
 فك الحزمة الكاملة. يحتاج المثبّت Python 3.10 أو أحدث، ويجب أن يكون مجلد

@@ -3,6 +3,7 @@
 # dependencies = ["pydantic", "python-dotenv", "pyyaml", "rich"]
 # ///
 """Alias for guarded light SDLC: reviewed plan, build, checks and code review."""
+import adw_modules
 import argparse
 import os
 import sys

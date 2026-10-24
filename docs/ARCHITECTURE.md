@@ -27,6 +27,51 @@ See the installed [planning](../.claude/skills/kh/references/reviewed-planning.m
 [intent](../.claude/skills/kh/references/intent.md) and
 [project ledger](../.claude/skills/kh/references/project-tracking.md) contracts.
 
+## Workflow diagram
+
+```mermaid
+flowchart TD
+    intent["Owner accepts the intent"] --> context["Project architect proposes guides; separate review approves"]
+    context --> plan["Planner proposes the scoped plan"]
+    plan --> planReview{"Plan reviewer approves this version?"}
+    planReview -- "Revise within limits" --> plan
+    planReview -- "Yes" --> build["Builder edits the isolated candidate"]
+    build --> docs["Documenter proposes approved documentation"]
+    docs --> checks{"Controller checks pass?"}
+    checks -- "Bounded correction" --> build
+    checks -- "Yes" --> review{"Independent reviewer approves?"}
+    review -- "Bounded correction" --> build
+    review -- "Yes" --> promote["Controller promotes the verified source"]
+    promote --> publication{"Context publication succeeds?"}
+    publication -- "No" --> reconcile["Reconciliation required; task remains incomplete"]
+    publication -- "Yes" --> receipt["Controller records acceptance"]
+    receipt --> next["Next ready ticket"]
+```
+
+Corrections remain inside configured deadlines and attempt limits. Exhausted
+limits, unresolved checks or missing approval stop acceptance. Source promotion
+and context publication are distinct steps; a failed publication requires
+reconciliation rather than a completed task.
+
+## Role ownership
+
+![Role proposals and independent reviews meet at the deterministic controller.](assets/roles-and-controller.svg)
+
+| Role | Produces or assesses | Entry point |
+| --- | --- | --- |
+| Project architect | Current project guides from observed source | `/kh-bootstrap`; preparation before guarded execution |
+| Plan reviewer | Independent context review and approval of an exact plan version | `/kh-bootstrap`, `/kh-plan-review`, guarded execution |
+| Planner | Scope, ordered steps, check obligations and documentation targets | `/kh-plan-review`, `/kh-start` |
+| Builder | Source changes in an isolated candidate | `/kh-start` or a ticket selected by `run-continuous` |
+| Documenter | Read-only proposals for approved documentation paths | Closing phase of guarded execution; `/kh-document` for standalone documentation |
+| Reviewer | Checked changes, requirement coverage and recorded evidence | Independent review in the guarded cycle |
+| Controller | Ordering, checks, limits, source promotion and acceptance receipts | Python runtime; no model is assigned to this responsibility |
+
+The owner records a supported CLI transport, model and effort for each model
+role with `/kh-setup-models`. Separate phase contexts retain role independence
+even when roles share a model. A standalone command's proposal or approval does
+not complete a ledger task. The controller remains the acceptance authority.
+
 ## Current context and closing documentation
 
 Current project guides live in docs/agent-guide/ and historical change records

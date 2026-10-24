@@ -8,8 +8,6 @@ A local controller that takes one ticket through a reviewed plan, a locked file 
 
 [Start here](START_HERE.md) · [18 commands](COMMANDS.md) · [Architecture](docs/ARCHITECTURE.md) · [Download](https://github.com/khaled1174/KH-Software-Factory/releases/latest) · [Arabic guide](START_HERE_AR.md)
 
-<!-- Demo slot: record a 30-second asciinema or GIF of one task cycle and embed it here. -->
-
 ## The problem
 
 Hand an agent a ticket and three things happen often enough to matter: it edits files that had nothing to do with the ticket, it reports success without running your tests, and it reviews its own work and approves it. So you read the whole diff anyway, and end up supervising the agent instead of shipping the work.
@@ -36,6 +34,10 @@ Role models submit proposals and evidence. The controller owns ordering, scope, 
 
 Run a recorded project plan with `/kh-project run-continuous`. Tasks execute sequentially and a dependency unlocks only after the task it depends on is accepted. Corrections keep the same scope, permissions, deadlines and attempt limits.
 
+## Requirements
+
+macOS; Linux with `bubblewrap` and `socat`; or Windows through **WSL2 + Ubuntu** (not WSL1 or native Windows). **Python 3.10+** and **Claude Code installed and logged in** are required; workflow commands also need Git and `uv`. [WSL2 setup](START_HERE.md#windows-via-wsl2).
+
 ## Quick start
 
 Download and unpack the [latest release](https://github.com/khaled1174/KH-Software-Factory/releases/latest), then preview and install:
@@ -53,7 +55,5 @@ Configure your real quality commands — KH can only verify what you ask it to r
 - Not a sandbox. Acceptance is still bounded by your native CLI permissions.
 - Not a guarantee of correctness. It guarantees that the checks you configured actually ran and passed, and that an independent reviewer saw the diff.
 - Not an approval UI. The optional trace UI observes and reports tokens and cost; it cannot execute or approve anything. Cost figures are informational.
-
-## Status
 
 Version 1.0.0 — see [CHANGELOG.md](CHANGELOG.md). Built and used on my own projects, with Claude Code and Codex as the providers; it has not been through an external pilot yet. The release gate runs the full test suite, contract evaluations and installer smoke checks against the extracted release ZIP, and the Verify badge above is the live result. [Verification and known limits](docs/VERIFICATION.md) sets out what those results do and do not establish; [source attribution](docs/THIRD_PARTY.md) and the [integration register](docs/Skills_Integration_Register.md) identify sources, licenses and responsibilities. The project itself is MIT licensed — see [LICENSE](LICENSE).

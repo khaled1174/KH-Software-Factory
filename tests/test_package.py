@@ -161,10 +161,11 @@ class PackageTests(unittest.TestCase):
 
     def test_start_guides_have_matching_section_order(self):
         expected = [['# KH Software Factory \u2014 start here', '# \u0627\u0644\u0628\u062f\u0621 \u0645\u0639 KH Software Factory'], ['## Install', '## \u0627\u0644\u062a\u062b\u0628\u064a\u062a'], ['## Upgrade and restore', '## \u0627\u0644\u062a\u0631\u0642\u064a\u0629 \u0648\u0627\u0644\u0627\u0633\u062a\u0631\u062c\u0627\u0639'], ['## Configure tools, models and checks', '## \u0625\u0639\u062f\u0627\u062f \u0627\u0644\u0623\u062f\u0648\u0627\u062a \u0648\u0627\u0644\u0646\u0645\u0627\u0630\u062c \u0648\u0627\u0644\u0641\u062d\u0648\u0635'], ['## Intent, plan and project preparation', '## \u0627\u0644\u0646\u064a\u0629 \u0648\u0627\u0644\u062e\u0637\u0629 \u0648\u062a\u062c\u0647\u064a\u0632 \u0641\u0647\u0645 \u0627\u0644\u0645\u0634\u0631\u0648\u0639'], ['## Execute a task or recorded project', '## \u062a\u0646\u0641\u064a\u0630 \u0645\u0647\u0645\u0629 \u0623\u0648 \u062e\u0637\u0629 \u0627\u0644\u0645\u0634\u0631\u0648\u0639'], ['## Follow progress, failure and recovery', '## \u0645\u062a\u0627\u0628\u0639\u0629 \u0627\u0644\u062a\u0642\u062f\u0645 \u0648\u0627\u0644\u0641\u0634\u0644 \u0648\u0627\u0644\u0627\u0633\u062a\u0631\u062f\u0627\u062f'], ['## Documentation and enforcement', '## \u0627\u0644\u062a\u0648\u062b\u064a\u0642 \u0648\u062d\u062f\u0648\u062f \u0627\u0644\u062a\u0646\u0641\u064a\u0630'], ['### Where enforcement lives', '### \u0623\u064a\u0646 \u062a\u0637\u0628\u0642 \u0627\u0644\u062d\u0645\u0627\u064a\u0629'], ['## Optional trace UI', '## \u0648\u0627\u062c\u0647\u0629 \u0627\u0644\u062a\u062a\u0628\u0639 \u0627\u0644\u0627\u062e\u062a\u064a\u0627\u0631\u064a\u0629'], ['## Develop and verify this distribution', '## \u062a\u0637\u0648\u064a\u0631 \u0647\u0630\u0647 \u0627\u0644\u062d\u0632\u0645\u0629 \u0648\u0627\u0644\u062a\u062d\u0642\u0642 \u0645\u0646\u0647\u0627']]
+        expected[1:1] = [["## Requirements", "## \u0627\u0644\u0645\u062a\u0637\u0644\u0628\u0627\u062a"], ["### Windows via WSL2", "### Windows \u0639\u0628\u0631 WSL2"]]
         headings = lambda name: re.findall(r'^#{1,3} .+$', (ROOT / name).read_text(), re.M)
         self.assertEqual([english for english, _ in expected], headings('START_HERE.md'))
         self.assertEqual([arabic for _, arabic in expected], headings('START_HERE_AR.md'))
-        commands = lambda name: re.findall(r'```(?:bash|text)\n(.*?)\n```', (ROOT / name).read_text(), re.S)
+        commands = lambda name: re.findall(r'```(?:bash|text|powershell)\n(.*?)\n```', (ROOT / name).read_text(), re.S)
         self.assertEqual(commands('START_HERE.md'), commands('START_HERE_AR.md'))
 
     def test_active_markdown_keeps_arabic_in_the_translation_only(self):
@@ -303,7 +304,7 @@ class PackageTests(unittest.TestCase):
             self.assertFalse(passed, detail)
             self.assertIn('## Task request', detail)
 
-    def test_ci_checks_archive_once_per_feature_pr_update(self):
+    def test_ci_checks_archive_once_per_python_version_and_pr_update(self):
         workflow = yaml.load((ROOT / '.github/workflows/verify.yml').read_text(), Loader=yaml.BaseLoader)
         self.assertEqual(workflow['on'], {'push': {'branches': ['main']}, 'pull_request': {}, 'workflow_dispatch': {}})
         steps = workflow['jobs']['verify']['steps']
@@ -315,8 +316,8 @@ class PackageTests(unittest.TestCase):
         self.assertIn('"$KH_BUN" run build', commands)
         self.assertIn('"$KH_BUN" run lint', commands)
         self.assertTrue(any(step.get('uses', '').startswith('actions/upload-artifact@') and
-                            step.get('with', {}).get('name') == 'kh-call-counts' for step in steps))
-        logs = next((step for step in steps if step.get('with', {}).get('name') == 'kh-release-verification'), {})
+                            step.get('with', {}).get('name') == 'kh-call-counts-py${{ matrix.python }}' for step in steps))
+        logs = next((step for step in steps if step.get('with', {}).get('name') == 'kh-release-verification-py${{ matrix.python }}'), {})
         self.assertTrue(logs.get('uses', '').startswith('actions/upload-artifact@'))
         self.assertEqual('always()', logs.get('if'))
         self.assertEqual('/tmp/kh-software-factory-verification', logs.get('with', {}).get('path'))

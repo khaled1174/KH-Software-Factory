@@ -6,6 +6,51 @@ KH has one acceptance controller. Read this guide for operation, the
 Downloading this distribution does not migrate another project.
 A [maintained Arabic translation](START_HERE_AR.md) follows the same sections.
 
+## Requirements
+
+- macOS, or Linux with `bubblewrap` and `socat`, or Windows through WSL2 with Ubuntu. WSL1 and native Windows are unsupported.
+- Python 3.10 or newer, Git and `uv` in the environment where KH runs.
+- Claude Code installed and logged in in that same environment. Install any additional selected provider CLI there too.
+
+### Windows via WSL2
+
+In administrator PowerShell, install Ubuntu. Restart Windows if requested and
+complete Ubuntu's initial user setup:
+
+```powershell
+wsl --install -d Ubuntu
+```
+
+Then select WSL2 and confirm that Ubuntu's `VERSION` column is `2`:
+
+```powershell
+wsl --set-version Ubuntu 2
+wsl --list --verbose
+```
+
+Open the Ubuntu terminal and install the Linux tools there:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y python3 python3-venv bubblewrap socat curl git
+curl -LsSf https://astral.sh/uv/install.sh | sh
+curl -fsSL https://claude.ai/install.sh | bash
+export PATH="$HOME/.local/bin:$PATH"
+mkdir -p ~/projects
+cd ~/projects
+python3 --version
+claude
+```
+
+Confirm Python is at least 3.10 and complete Claude Code's login. Clone or unpack
+both KH and your project under `~/`, such as `~/projects/`, never `/mnt/c`.
+Run the remaining installation and workflow commands inside Ubuntu.
+See [Microsoft's WSL installation](https://learn.microsoft.com/en-us/windows/wsl/install)
+and [filesystem guidance](https://learn.microsoft.com/en-us/windows/wsl/filesystems),
+the [Claude Code quickstart](https://code.claude.com/docs/en/quickstart)
+and [sandbox prerequisites](https://code.claude.com/docs/en/sandboxing),
+and [uv installation](https://docs.astral.sh/uv/getting-started/installation/).
+
 ## Install
 
 Unpack the complete distribution. Python 3.10 or newer runs the installer;

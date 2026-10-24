@@ -28,11 +28,11 @@ import os
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
 import sys
 
 from adw_modules import agents, routing
 from adw_modules.scope import _atomic_json, _parent_fd, _read_json
+from pydantic import Field
 
 
 # Friendly CLI names are normalized by routing.RUNTIME_ALIASES.

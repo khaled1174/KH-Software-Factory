@@ -151,6 +151,10 @@ session's review flag but cannot dispatch or approve. Missing history remains
 unknown; a fetched snapshot is not proof that an agent is alive.
 See [observability](../.claude/skills/kh/references/observability.md).
 
+The distribution's [offline intervention report](INTERVENTION_REPORT.md) derives
+stop counts and current blockers from a selected project's existing ledger and
+journals. It changes no task state and cannot dispatch work or record approval.
+
 ## Reproduce the measured scope
 
 ```bash

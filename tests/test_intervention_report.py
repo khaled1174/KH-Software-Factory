@@ -132,7 +132,9 @@ class InterventionReportTests(unittest.TestCase):
         self.assertEqual(self.files(), before)
 
     def test_a_repaired_gate_is_not_a_terminal_stop(self):
+        from adw_modules.data_types import EventRecord
         self.journal('r1', [
+            EventRecord(adw_id='r1', type='log').model_dump(),
             {'type': 'gate_fail', 'name': 'proposal_gate', 'payload': {'violations': ['old failure']}},
             {'type': 'error', 'name': 'builder', 'payload': {'error': 'temporary failure'}},
             {'type': 'phase_end', 'name': 'guarded_task', 'payload': {'status': 'success'}},

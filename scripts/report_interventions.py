@@ -131,7 +131,7 @@ def read_journals(root):
                 row = json.loads(line)
                 if (not isinstance(row, dict) or row.get('adw_id') != path.parent.name
                         or not isinstance(row.get('type'), str) or not row.get('type')
-                        or not isinstance(row.get('name'), str) or not row.get('name')
+                        or not isinstance(row.get('name'), str)
                         or not isinstance(row.get('payload'), dict)):
                     raise ValueError('Invalid journal event or run identity')
             except ValueError as error:

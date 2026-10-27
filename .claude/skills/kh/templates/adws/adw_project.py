@@ -109,11 +109,6 @@ def _pause_requested(root, controller_id):
     return action == 'pause_after_current'
 
 
-def _controller_state(controller_id, state, **detail):
-    return {'schema_version': CONTROL_SCHEMA_VERSION, 'controller_id': controller_id,
-            'state': state, 'updated_at': _now(), **detail}
-
-
 def _stdout_notification(event):
     print('KH_TASK_COMPLETED ' + json.dumps(event, ensure_ascii=False), flush=True)
 
@@ -154,12 +149,18 @@ def run_continuous(root, *, wait_seconds=0, mode='full',
     previous_cwd = Path.cwd()
     state_detail = {'mode': mode, 'pid': os.getpid(), 'current_task': None,
                     'completed_this_run': 0}
+    def save_state(state, **detail):
+        if state in {'stopped', 'paused'}:
+            result.update(status=state, exit_code=int(state == 'stopped'))
+            state_detail['current_task'] = None
+        _write_control(root, 'controller-state.json', {
+            'schema_version': CONTROL_SCHEMA_VERSION, 'controller_id': controller_id,
+            'state': state, 'updated_at': _now(), **state_detail, **detail})
     try:
         with session.acquire_repo_lock(root, wait_seconds=wait_seconds) as lease:
             snapshot = project.status(root)
             with _control_guard(root):
-                _write_control(root, 'controller-state.json',
-                               _controller_state(controller_id, 'running', **state_detail))
+                save_state('running')
                 _write_control(root, 'controller-request.json', {
                     'schema_version': CONTROL_SCHEMA_VERSION, 'controller_id': controller_id,
                     'action': 'run', 'requested_at': _now()})
@@ -169,30 +170,21 @@ def run_continuous(root, *, wait_seconds=0, mode='full',
                     snapshot = project.status(root)
                     totals = snapshot['totals']
                     if totals['completed'] == totals['tasks']:
-                        result['status'] = 'complete'
-                        _write_control(root, 'controller-state.json', _controller_state(
-                            controller_id, 'complete', **state_detail,
-                            completion_percent=totals['completion_percent']))
+                        save_state('complete', completion_percent=totals['completion_percent'])
                         break
                     states = {task['id']: task['status'] for task in snapshot['tasks']}
                     selected = next((task_id for task_id in snapshot['next_tasks']
                                      if states.get(task_id) == 'pending'), None)
                     if selected is None:
-                        result.update(status='stopped', exit_code=1,
-                                      reason='No ready pending task; resolve blocked or interrupted work')
-                        _write_control(root, 'controller-state.json', _controller_state(
-                            controller_id, 'stopped', **state_detail, reason=result['reason']))
+                        result['reason'] = 'No ready pending task; resolve blocked or interrupted work'
+                        save_state('stopped', reason=result['reason'])
                         break
                     with _control_guard(root):
                         if _pause_requested(root, controller_id):
-                            result['status'] = 'paused'
-                            _write_control(root, 'controller-state.json', _controller_state(
-                                controller_id, 'paused', **state_detail,
-                                reason='Owner requested pause before the next task'))
+                            save_state('paused', reason='Owner requested pause before the next task')
                             break
                         state_detail['current_task'] = selected
-                        _write_control(root, 'controller-state.json',
-                                       _controller_state(controller_id, 'running', **state_detail))
+                        save_state('running')
                     entry = {'task_id': selected}
                     result['attempted'].append(entry)
                     try:
@@ -202,17 +194,11 @@ def run_continuous(root, *, wait_seconds=0, mode='full',
                         entry.update(exit_code=code, status=actual['status'], run_id=actual.get('run_id'))
                         if code != 0 or actual['status'] != 'completed':
                             entry['reason'] = actual.get('blocker') or 'Task did not reach controller-verified completion'
-                            result.update(status='stopped', exit_code=1)
-                            state_detail['current_task'] = None
-                            _write_control(root, 'controller-state.json', _controller_state(
-                                controller_id, 'stopped', **state_detail, reason=entry['reason']))
+                            save_state('stopped', reason=entry['reason'])
                             break
                     except (ValueError, RuntimeError, OSError) as error:
                         entry.update(status='stopped', reason=str(error), exit_code=1)
-                        result.update(status='stopped', exit_code=1)
-                        state_detail['current_task'] = None
-                        _write_control(root, 'controller-state.json', _controller_state(
-                            controller_id, 'stopped', **state_detail, reason=str(error)))
+                        save_state('stopped', reason=str(error))
                         break
 
                     snapshot = project.status(root)
@@ -227,31 +213,23 @@ def run_continuous(root, *, wait_seconds=0, mode='full',
                              'total_tasks': totals['tasks'],
                              'completion_percent': totals['completion_percent'],
                              'next_task': next_tasks[0] if next_tasks else None}
-                    _write_control(root, 'controller-state.json', _controller_state(
-                        controller_id, 'running', **state_detail, last_completed=event))
+                    save_state('running', last_completed=event)
                     try:
                         notify(event)
                     except Exception as error:
                         entry['notification_error'] = str(error)
-                        result.update(status='stopped', exit_code=1,
-                                      reason='Owner notification failed; no later task was dispatched')
-                        _write_control(root, 'controller-state.json', _controller_state(
-                            controller_id, 'stopped', **state_detail, reason=result['reason']))
+                        result['reason'] = 'Owner notification failed; no later task was dispatched'
+                        save_state('stopped', reason=result['reason'])
                         break
                     with _control_guard(root):
                         if _pause_requested(root, controller_id):
-                            result['status'] = 'paused'
-                            _write_control(root, 'controller-state.json', _controller_state(
-                                controller_id, 'paused', **state_detail,
-                                reason='Owner requested pause after the current task'))
+                            save_state('paused', reason='Owner requested pause after the current task')
                             break
             finally:
                 os.chdir(previous_cwd)
     except BaseException:
         try:
-            _write_control(root, 'controller-state.json', _controller_state(
-                controller_id, 'interrupted', **state_detail,
-                reason='Continuous controller was interrupted'))
+            save_state('interrupted', reason='Continuous controller was interrupted')
         except Exception:
             pass
         raise

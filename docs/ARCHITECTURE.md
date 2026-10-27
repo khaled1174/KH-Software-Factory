@@ -151,6 +151,60 @@ session's review flag but cannot dispatch or approve. Missing history remains
 unknown; a fetched snapshot is not proof that an agent is alive.
 See [observability](../.claude/skills/kh/references/observability.md).
 
+## Offline intervention reporting
+
+The distribution inspector prints a stop baseline and blocker report for an
+explicitly selected project:
+
+```bash
+python3 -B scripts/report_interventions.py --root "/path/to/project"
+python3 -B scripts/report_interventions.py --root "/path/to/project" --format json
+```
+
+It reads `.kh/project.db` and default
+`adws/adw_data/sessions/*/events.jsonl` journals. It does not search other
+projects, custom data directories, environment files or provider output streams.
+It starts no process or model, imports no runtime, and writes no project files.
+This maintenance inspector is not an installed slash command or a controller.
+
+Use a quiescent offline project. SQLite reads use a private temporary copy;
+nonempty WAL/rollback journals, symlinked inputs and nonregular files are refused.
+Corrupt inputs exit 2 with an error and no partial report. Input bytes and
+modification times are preserved. Unchanged inputs produce deterministic JSON.
+
+Each ledger `blocked` or `recovered` event counts as one recorded stop. A guarded
+terminal journal error adds a stop only if that run has no ledger stop. Repaired
+role errors and gate failures are excluded. These counts do not measure human
+interventions; `human_interventions` remains null.
+
+| Cause | Explicit recorded signal |
+| --- | --- |
+| `owner_decision` | `OWNER_DECISION_REQUIRED` or `OWNER_REVIEW_REQUIRED` |
+| `permissions` | A role's prohibited-path rejection |
+| `quality` | Failed role gates, saved review/checks, plan revision or changed verification source |
+| `environment` | `INFRA_OR_PROVIDER_BLOCKER` or `INFRA_BOUNDARY` |
+| `interruption` | Ledger `recovered` event |
+| `limits` | Explicit budget, deadline, role timeout or no-progress stop |
+| `unknown` | No recognized controller marker |
+
+Each stop retains task/run identity, reason, timestamp, evidence location and
+SHA-256. A matching journal can supply the failed phase, gate and violations;
+unrelated or absent evidence cannot. Affected files are never inferred from the
+allowed paths. Required actions point to existing correction, acceptance or
+recovery paths without approving work, expanding permissions or resetting limits.
+Existing `report`/`hold`, notification failure and acceptance behavior is unchanged.
+
+`open_blockers` follows current ledger state; successful retries retain history
+without an open blocker. Without a ledger, current task state is unknown. Missing
+stop history for a blocked task marks coverage partial and retains its snapshot.
+Missing history uses null counts; an initialized unstarted project has zero
+recorded stops. Unknown history is never reconstructed from guesses.
+
+Custom data paths, pre-session failures and unrecorded manual actions are outside
+this baseline. A zero observed count does not prove no human work occurred.
+Evidence links are local; reports can contain private paths and recorded messages
+and should remain with their project.
+
 ## Reproduce the measured scope
 
 ```bash

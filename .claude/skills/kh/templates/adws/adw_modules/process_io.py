@@ -1,6 +1,5 @@
 """Bounded subprocess supervision with concurrent pipe draining (POSIX)."""
 from __future__ import annotations
-import ctypes
 import codecs
 import io
 import json
@@ -10,17 +9,13 @@ import os
 import queue
 import signal
 import subprocess
-import sys
 import threading
 import time
-import uuid
-from pathlib import Path
 from dataclasses import dataclass
 from typing import Callable
 from contextlib import contextmanager
 
 ROLE_TAG = "KH_ROLE_TAG"
-DESCENDANT_POLL_SECONDS = 0.1
 
 
 class StreamResult(tuple):

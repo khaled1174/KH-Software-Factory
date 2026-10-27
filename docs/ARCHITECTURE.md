@@ -164,7 +164,7 @@ python3 -B scripts/report_interventions.py --root "/path/to/project" --format js
 It reads `.kh/project.db` and default
 `adws/adw_data/sessions/*/events.jsonl` journals. It does not search other
 projects, custom data directories, environment files or provider output streams.
-It starts no process or model, imports no runtime, and writes only stdout.
+It starts no process or model, imports no runtime, and writes no project files.
 This maintenance inspector is not an installed slash command or a controller.
 
 Use a quiescent offline project. SQLite reads use a private temporary copy;

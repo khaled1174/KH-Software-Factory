@@ -34,7 +34,7 @@ After implementation, the focused suite ended with `Ran 19 tests` and `OK`.
 The distribution has no local task ledger or journals. Running the report here
 returns unknown stop counts, unknown human interventions and no invented history.
 The seven-cause fixture is a deterministic test, not an owner usage measurement.
-See the [report contract and coverage limits](INTERVENTION_REPORT.md).
+See the [report contract and coverage limits](ARCHITECTURE.md#offline-intervention-reporting).
 
 ## Not verified
 

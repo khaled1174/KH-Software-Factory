@@ -99,12 +99,43 @@ CRLF paragraphs and the exact trace payload fields also have regression coverage
 Oversized line references and unterminated Markdown fences are bounded without
 executing project code or changing the configured retry/deadline policy.
 
+## Owner evidence for dependency restrictions
+
+The frozen unsupported-restriction regression failed on `2329d71`: the real
+proposal gate incorrectly passed (`FAILED (failures=1)`). A generated guide now
+needs a cited, affirmative owner instruction covering the guide scope. Preserved
+owner guide text remains accepted; unchanged model-managed instructions cannot
+self-authorize. The change shares existing architect/documenter validation.
+
+The 19 dependency tests and 24 parser tests pass. Two additional authority
+counterexamples first failed (`FAILED (failures=2)`): a nested instruction used
+through path traversal and a rule qualified to one task. Both now reject.
+Independent review found that mandatory instruction files override proposed
+applicability with their location. Its real-proposal AGENTS/CLAUDE regression
+failed before correction (`FAILED (failures=2)`) and passes afterward; scope
+containment now uses the same effective applicability as publication.
+Seven new controller-state contract tests pass on main and after consolidation;
+the 14 existing continuous-run tests also pass. Serialization consolidation
+preserves acceptance, notifications, pause/failure/interrupt payloads and locks,
+freeing space for the gate while the engine stays at 17,667 lines. Guard,
+permissions, sandbox, floor and attempts are unchanged.
+
+On the unchanged offline corpus, detection increases from 5/7 to 6/7, with zero
+false alarms on six correct guides, six integrity controls and zero provider
+calls. Exception generalization remains open. The independent reviewer and full
+source/archive verification results are reported with the PR's workflow artifacts.
+Against main workflow [40470462666](https://github.com/khaled1174/KH-Software-Factory/actions/runs/40470462666),
+cold calls remain 10 to 10 and warm 8 to 8. Role counts, role/target/phase order
+and receipt field structure match. Host paths, run IDs, elapsed time and their
+derived hashes are not compared literally. Python outside tests adds 46 lines
+and removes 46; commands remain 18.
+
 ## Not verified
 
 No live provider experiment was run for this release. Deterministic fixtures do
 not establish general model quality, real-account availability or subscription
-billing. The offline documentation corpus detects five of seven defective guides,
-misses two, and produces zero false alarms on six correct guides; all six
+billing. The offline documentation corpus detects six of seven defective guides,
+misses one, and produces zero false alarms on six correct guides; all six
 integrity controls pass. These checks are not a general factual-accuracy gate.
 The Claude Code settings-isolation probe uses a local mock endpoint; CI skips
 that case when the CLI is unavailable. This does not test a real provider account.

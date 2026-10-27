@@ -126,11 +126,16 @@ def run_fixture(folder, manifest, guide_text, *, source_changed=False, control=N
             pc.ContextDocument(path='CLAUDE.md', content='Read [guide](docs/agent-guide/project.md).\n'),
             pc.ContextDocument(path='AGENTS.md', content='Read [guide](docs/agent-guide/project.md).\n'),
             pc.ContextDocument(path=GUIDE, content=guide_text, applies_to=['logreports/**', 'tests/**'])])
-        # Fixed fixture approval seeds the reviewed state. It is not a model
-        # review or a claim that the initially supplied guide is factually true.
-        review = pc.ContextReviewOutput(status='success', decision='approve',
-                                       proposal_digest=pc.digest(proposal.model_dump()))
-        pc.publish_context(root, proposal, review, baseline)
+        # Model a legacy ready snapshot, including previously approved mistakes.
+        # A new fact gate can reject those bytes at fresh bootstrap, so seed the
+        # old state using real projection/source bindings rather than weakening
+        # or substituting any gate measured below. This is not semantic approval.
+        baseline['guide_source_bindings'] = {document.path: {
+            'applies_to': pc._applicability(document.path, document.applies_to),
+            'source_digests': pc.source_digests(root, document.model_dump(), observed)}
+            for document in proposal.documents}
+        index, contents = pc._publication_content(root, proposal, baseline)
+        pc._write_context(root, index, contents, {**observed['documents'], pc.INDEX: None})
         initial_status = pc.inspect_context(root)['status']
         if initial_status != 'ready':
             raise RuntimeError('Fixture publication did not produce its declared ready baseline')
@@ -306,7 +311,7 @@ def evaluate(folder=CORPUS):
             'agents.execute orchestration is substituted; current mandatory gate assembly is explicit, not automatically inherited.',
             'Correct-guide controls have unchanged source; accurate retained guides after source drift are not evaluated.',
             'The parallel fixture reproduces source forks and merge order, not concurrent scheduling or candidate-import acceptance.',
-            'Fixed fixture review approvals do not measure model semantic review or task acceptance.',
+            'Legacy context seeding uses controller projection, not model semantic review or task acceptance.',
             'Structured fixture outputs bypass extraction; parser behavior has independent regression tests.',
             'No claim of general factual correctness, production false-alarm rate, live quality, speed or cost.',
             'Build omission is a coverage case; exclusive test-inventory claims are outside this corpus.']}

@@ -25,13 +25,8 @@ POST_STOP_DRAIN_SECONDS = 0.2
 
 def source_fingerprint(run):
     """Identity of the source/control bytes, excluding disposable output/evidence."""
-    from . import permissions, workspace
-    excluded = workspace.exclusions(run)
-    own = getattr(run, 'agent_output_relative', None)
-    if own:
-        excluded.append(own)
-    captured = permissions.snapshot(SimpleNamespace(repo_root=run.repo_root, cfg=run.cfg,
-                                                    snapshot_excludes=excluded))
+    from . import permissions
+    captured = _source_snapshot(run)
     source = {p: digest for p, digest in captured.items() if not p.startswith('@git/')}
     return hashlib.sha256(json.dumps({'source': source, 'dependencies': permissions.dependency_fingerprint(run)},
                                      sort_keys=True).encode()).hexdigest()
@@ -45,24 +40,30 @@ def workable_fingerprint(run):
     or a check command between runs does not make an approved plan or kept
     work stale, while any change to the code the task works on does.
     """
-    from . import agents, permissions, workspace
+    from . import agents, permissions
     try:
         builder = agents.resolve(run.cfg, 'builder')
     except Exception:
         return source_fingerprint(run)
-    excluded = workspace.exclusions(run)
-    own = getattr(run, 'agent_output_relative', None)
-    if own:
-        excluded.append(own)
-    captured = permissions.snapshot(SimpleNamespace(repo_root=run.repo_root, cfg=run.cfg,
-                                                    snapshot_excludes=excluded))
+    captured = _source_snapshot(run)
     source = {p: digest for p, digest in captured.items()
               if not p.startswith('@git/') and permissions.permitted(p, builder, run.cfg)}
     return hashlib.sha256(json.dumps(source, sort_keys=True).encode()).hexdigest()
 
 
-def _configured(run, name):
-    return list(run.cfg.defaults.quality_checks.get(name, [])) if hasattr(run, "cfg") else []
+def _source_snapshot(run):
+    from . import permissions, workspace
+    excluded = workspace.exclusions(run)
+    own = getattr(run, 'agent_output_relative', None)
+    return permissions.snapshot(SimpleNamespace(repo_root=run.repo_root, cfg=run.cfg,
+        snapshot_excludes=excluded + ([own] if own else [])))
+
+
+def _configured_block(run, name, **options):
+    """Build the common spec; test retains its distinct operation and deadline."""
+    argv = list(run.cfg.defaults.quality_checks.get(name, [])) if hasattr(run, "cfg") else []
+    return _run(QualityCheckSpec(name=name, area="backend", operation="build" if name == "test" else name,
+                               argv=argv, **options), run)
 
 
 def require_configured(cfg, names):
@@ -261,18 +262,22 @@ def _run(spec: QualityCheckSpec, run, *, environment=None, capture=None,
             'command_log': {'path': str(output_artifact),
                             'sha256': hashlib.sha256(output_artifact.read_bytes()).hexdigest()}})
     passed = returncode == 0
+    result = QualityCheckResult(
+        **spec.model_dump(include={"name", "area", "operation"}),
+        command=command,
+        returncode=returncode,
+        passed=passed,
+        duration_seconds=duration,
+        output_artifact=str(output_artifact),
+        output_tail=(stdout + stderr)[-TAIL_CHARS:],
+    )
     run.tracer.event(EventRecord(
         adw_id=run.adw_id,
         phase_id=phase.phase_id,
         type="tool_call",
         name=f"quality:{spec.name}",
         payload={
-            "area": spec.area,
-            "operation": spec.operation,
-            "command": command,
-            "returncode": returncode,
-            "passed": passed,
-            "output_artifact": str(output_artifact),
+            **result.model_dump(include={"area", "operation", "command", "returncode", "passed", "output_artifact"}),
             "streams_complete": streams_complete,
             "cleanup": cleanup,
         },
@@ -285,59 +290,27 @@ def _run(spec: QualityCheckSpec, run, *, environment=None, capture=None,
     )
     if interrupted is not None:
         raise interrupted
-    return QualityCheckResult(
-        name=spec.name,
-        area=spec.area,
-        operation=spec.operation,
-        command=command,
-        returncode=returncode,
-        passed=passed,
-        duration_seconds=duration,
-        output_artifact=str(output_artifact),
-        output_tail=(stdout + stderr)[-TAIL_CHARS:],
-    )
+    return result
 
 
 # ── Blocks ────────────────────────────────────────────────────────────────────
-# Replace every argv below. See the banner at the top of this file.
+# Configure argv in defaults.quality_checks. See the banner at the top of this file.
 
 def test(run) -> QualityCheckResult:
     """Run the project's test suite. The highest-value block to wire up first."""
-    return _run(QualityCheckSpec(
-        name="test",
-        area="backend",
-        operation="build",
-        argv=_configured(run, "test"),        # e.g. ["bun", "test"] or ["uv", "run", "pytest", "-q"]
-        timeout_seconds=600,
-    ), run)
+    return _configured_block(run, "test", timeout_seconds=600)  # e.g. ["bun", "test"] or ["uv", "run", "pytest", "-q"]
 
 
 def lint(run) -> QualityCheckResult:
-    return _run(QualityCheckSpec(
-        name="lint",
-        area="backend",
-        operation="lint",
-        argv=_configured(run, "lint"),        # e.g. ["bun", "x", "oxlint@1.36.0", "src"]
-    ), run)
+    return _configured_block(run, "lint")  # e.g. ["bun", "x", "oxlint@1.36.0", "src"]
 
 
 def typecheck(run) -> QualityCheckResult:
-    return _run(QualityCheckSpec(
-        name="typecheck",
-        area="backend",
-        operation="typecheck",
-        argv=_configured(run, "typecheck"),   # e.g. ["bun", "x", "tsc", "--noEmit"]
-    ), run)
+    return _configured_block(run, "typecheck")  # e.g. ["bun", "x", "tsc", "--noEmit"]
 
 
 def build(run) -> QualityCheckResult:
-    output_dir = _check_dir(run, "build") / "bundle"
-    return _run(QualityCheckSpec(
-        name="build",
-        area="backend",
-        operation="build",
-        argv=_configured(run, "build"),       # e.g. ["bun", "build", "src/index.ts", "--outdir", str(output_dir)]
-    ), run)
+    return _configured_block(run, "build")  # e.g. ["bun", "build", "src/index.ts", "--outdir", "bundle"]
 
 
 def as_envelope(result: QualityResult, what: str) -> VerifyOutput:
@@ -352,12 +325,10 @@ def as_envelope(result: QualityResult, what: str) -> VerifyOutput:
         status="success" if result.passed else "fail",
         summary=(f"{what}: all {len(result.checks)} check(s) passed" if result.passed
                  else f"{what}: {len(result.failures)} of {len(result.checks)} check(s) failed"),
-        artifacts=result.artifacts,
+        **result.model_dump(include={"artifacts", "passed", "failures"}),
         notes_for_next_agent=("" if result.passed else
                               "Repair failures attributable to this task within its scope; report unrelated failures. The output is verbatim from the "
                               "command — trust it over any summary."),
-        passed=result.passed,
-        failures=result.failures,
     )
 
 
@@ -373,8 +344,7 @@ def run_quality(run) -> QualityResult:
                     "required_quality_checks", ["test", "lint", "typecheck", "build"])
     if not names or any(n not in available for n in names):
         raise RuntimeError("required_quality_checks must name at least one supported check")
-    blocks = [available[n] for n in names]
-    checks = [block(run) for block in blocks]
+    checks = [available[name](run) for name in names]
     # A failure is the command, its exit code, and what it actually printed —
     # everything a builder needs to repair without opening a log or being told
     # what the error "means" by a parser that guessed.

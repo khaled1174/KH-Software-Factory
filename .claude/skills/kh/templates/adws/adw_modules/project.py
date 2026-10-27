@@ -271,13 +271,6 @@ def status(root: Path) -> dict:
         return _snapshot(conn)
 
 
-def export_plan(root: Path) -> dict:
-    """Read the current canonical definitions, without derived task state."""
-    with _db(root) as conn:
-        return validate_plan(json.loads(conn.execute(
-            'SELECT plan FROM project WHERE singleton=1').fetchone()[0]))
-
-
 def load_task(root: Path, task_id: str) -> dict:
     with _db(root) as conn:
         return _task(_row(conn, task_id))

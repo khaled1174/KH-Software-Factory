@@ -64,12 +64,47 @@ Removed code is an uncalled retired-provider `UsageBreakdown.add_turn` method,
 an unused route tuple and two unused imports. Active usage fields and merging,
 guards, permissions, sandbox, quality floor and attempt limits are unchanged.
 
+## Standard JSON position claims
+
+The frozen parser-position regression failed on `55132c4`: `proposal_gate`
+incorrectly returned `passed: true` (`FAILED (failures=1)`). The new check is
+shared by architect and documenter validation. It parses the cited Python file,
+checks the call line and supported static import, and inspects a fixed standard
+JSONDecodeError instance. It never executes or imports project source.
+
+`test_documentation_parser_facts.py` passed 24 tests; `test_quality_blocks.py`
+passed six real-command tests. The latter preserve all four block operations,
+600/120-second requested deadlines, failed exit/output evidence, aggregate order,
+source/workable fingerprints and excluded role output. Metadata forwarding and
+common spec/snapshot preparation replace duplication without changing checks.
+
+The evaluator seeds an already-reviewed legacy snapshot using the controller's
+projection, source bindings and publication writer. New bad proposals still pass
+through the unchanged gate assembly. On archived main, original and revised
+seeding produced identical gate reports, source snapshots, integrity controls,
+labels and metrics: 4/7 detected, zero false alarms on six correct guides.
+With the new runtime check, detection rises to 5/7; corpus files and labels are
+unchanged. This isolates the gate improvement from the harness adjustment.
+
+Known custom namespaces, local JSON modules/packages, role-output exclusions,
+fenced examples and record-prefix qualifications have regression coverage.
+The engine stays at 17,667 lines. An uncalled internal plan-export wrapper and
+unused process-module imports/constant were removed; active cleanup is unchanged.
+Exception generalizations and unsupported dependency mandates remain open.
+Independent review found suffix qualifiers, custom error aliases/assignments,
+and recursive AST rendering. Their regressions failed before correction
+(`FAILED (errors=5)`). The check now matches complete cited paragraphs, tracks
+both bindings, uses structural AST checks, and declines unsupported parser depth.
+CRLF paragraphs and the exact trace payload fields also have regression coverage.
+Oversized line references and unterminated Markdown fences are bounded without
+executing project code or changing the configured retry/deadline policy.
+
 ## Not verified
 
 No live provider experiment was run for this release. Deterministic fixtures do
 not establish general model quality, real-account availability or subscription
-billing. The offline documentation corpus detects four of seven defective guides,
-misses three, and produces zero false alarms on six correct guides; all six
+billing. The offline documentation corpus detects five of seven defective guides,
+misses two, and produces zero false alarms on six correct guides; all six
 integrity controls pass. These checks are not a general factual-accuracy gate.
 The Claude Code settings-isolation probe uses a local mock endpoint; CI skips
 that case when the CLI is unavailable. This does not test a real provider account.

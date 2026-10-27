@@ -219,6 +219,7 @@ def _validate_documents(run, plan, documents, prior):
             raise ValueError('Documentation requires explicit applicability: ' + path)
         if not document.content.strip() or len(document.content.encode('utf-8')) > pc.MAX_BYTES:
             raise ValueError('Documentation must be nonempty and bounded: ' + path)
+        pc.validate_library_claims(run.repo_root, document)
         pc.validate_command_guide(run.repo_root, document, pc.command_declarations(run.repo_root, run.cfg, {'manifests': {}}))
         for target in pc._links(path, document.content):
             if target not in paths and not pc._path(run.repo_root, target).exists():

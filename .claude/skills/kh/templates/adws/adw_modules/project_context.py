@@ -7,6 +7,7 @@ multi-file atomicity. Existing owner files are retained verbatim.
 from __future__ import annotations
 from .utils import digest
 from . import execution_budget
+import ast
 import fnmatch
 import hashlib
 import posixpath
@@ -453,6 +454,7 @@ def validate_proposal(root, proposal, baseline):
                 raise ContextBlocked('Preserve owner documentation verbatim: ' + rel)
             if not document.content.strip() or not document.applies_to:
                 raise ContextBlocked('Empty document or applicability: ' + rel)
+            validate_library_claims(root, document)
             validate_command_guide(root, document, baseline.get('commands', {}))
             total += len(document.content.encode()) if rel not in proposal.retained_paths else 0
             for candidate in _links(rel, document.content):
@@ -520,6 +522,45 @@ def command_declarations(root, cfg, observed):
     # Copies remap project-local absolute argv. Keep derived guide bytes identical.
     prefix = json.dumps(str(Path(root).resolve()), ensure_ascii=False)[1:-1]
     return json.loads(json.dumps(data, ensure_ascii=False).replace(prefix, '<project>'))
+
+
+def validate_library_claims(root, document):
+    """Refute direct coordinate claims only for a cited, unshadowed stdlib call."""
+    if (document.purpose, document.status) != ('guide', 'active'):
+        return
+    prose = re.sub(r'(?ms)^[ ]{0,3}(?=[^\n]*\n)(?P<fence>(?P<mark>`|~)(?P=mark){2,})[^\n]*\n.*?'
+                   r'(?:^[ ]{0,3}(?P=fence)(?P=mark)*[ \t]*(?:\n|\Z)|\Z)', '', document.content.replace('\r\n', '\n'))
+    pattern = (r'(?m)(?:\A|(?<=\n\n))(?:json\.)?JSONDecodeError\s+(?:has\s+no|lacks|does\s+not\s+provide)\s+(?:parser\s+)?'
+               r'(?P<properties>(?:line(?:\s+number)?|lineno|column(?:\s+number)?|colno|position)\b[^\n]*?)'
+               r'\((?P<path>[\w./-]+\.py):(?P<line>\d+)\)\.[ \t]*(?=\n\n|\n?\Z)')
+    for claim in re.finditer(pattern, prose):
+        if set(re.findall(r'[A-Za-z_]+', claim['properties'])) - {'line', 'number', 'lineno', 'column', 'colno', 'position', 'parser', 'information', 'or', 'and'}:
+            continue
+        try:
+            tree = ast.parse(_read(root, claim['path']) or '')
+        except (SyntaxError, RecursionError):
+            continue
+        imports = {a for n in tree.body if isinstance(n, ast.Import)
+                   for a in n.names if a.name == 'json' and a.asname in {None, 'json'}}
+        if any(os.path.lexists(Path(root) / folder / suffix) for folder in {PurePosixPath(), PurePosixPath(claim['path']).parent}
+               for suffix in ('json.py', 'json')):
+            continue
+        dynamic = {'exec', 'eval', '__import__', 'setattr', 'delattr', 'globals', 'locals', 'import_module', 'reload'}
+        if not imports or any(n not in imports and (
+               getattr(n, 'name', None) in {'json', 'JSONDecodeError', '*'} or getattr(n, 'asname', None) in {'json', 'JSONDecodeError'}
+               or isinstance(n, (ast.Name, ast.Attribute)) and not isinstance(n.ctx, ast.Load)
+                  and any(isinstance(v, ast.Name) and v.id in {'json', 'JSONDecodeError'} for v in ast.walk(n))
+               or isinstance(n, ast.arg) and n.arg in {'json', 'JSONDecodeError'}
+               or isinstance(n, ast.Call) and getattr(n.func, 'id', getattr(n.func, 'attr', '')) in dynamic
+               or isinstance(n, ast.Attribute) and isinstance(n.value, ast.Name) and n.value.id == 'sys' and n.attr in {'path', 'modules'}) for n in ast.walk(tree)):
+            continue
+        if not any(isinstance(n, ast.Call) and str(n.lineno) == claim['line'].lstrip('0')
+                   and isinstance(n.func, ast.Attribute) and isinstance(n.func.value, ast.Name)
+                   and n.func.value.id == 'json' and n.func.attr in {'load', 'loads'} for n in ast.walk(tree)):
+            continue
+        error = json.JSONDecodeError('coordinate probe', '{', 1)
+        raise ContextBlocked(f'Standard JSONDecodeError exposes lineno={error.lineno}, colno={error.colno}: '
+                             f'{document.path}; cited call {claim["path"]}:{claim["line"]}')
 
 
 def validate_command_guide(root, document, commands):

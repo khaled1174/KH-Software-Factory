@@ -110,7 +110,18 @@ correction limits. It runs no build command or model. Optional or undeclared
 builds, historical records and unrelated feature guides retain their contracts.
 This is bounded command coverage, not free-form semantic claim verification:
 other heading conventions, arbitrary aliases and contradictory surrounding
-prose require independent review. The fixed corpus still misses three semantic defects; see
+prose require independent review.
+
+Complete, unqualified field-list paragraphs denying standard JSONDecodeError
+position fields are checked against
+a fixed in-memory standard-library error instance and the cited Python call's
+AST. Cited project code is never executed. Supported static imports and call-line
+citations are required; custom bindings, local module collisions and detected
+dynamic namespace changes remain under existing review. Loader-record prefixes
+are distinct from parser coordinates. Fenced examples and qualified prose are
+excluded from this bounded check. Arbitrary paraphrases, incomplete assertions, transitive
+imports and runtime import-environment changes are not resolved by it.
+The fixed corpus still misses two semantic defects; see
 [verification](VERIFICATION.md#not-verified).
 The full installed [context reference](../.claude/skills/kh/references/project-context.md)
 defines fields, source limits, preservation, review continuity and recovery.

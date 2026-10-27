@@ -102,7 +102,15 @@ from measured changed paths; the model does not invent the changed-file set.
 Candidate identity, source proofs, target paths, lifecycle and owner baseline
 are validated before staging and again at projection/promotion boundaries.
 These checks establish delivery/freshness contracts, not general semantic truth.
-The fixed offline corpus still misses five semantic defects; see
+Active operating guides that list both `Run:` and `Tests:` instructions must
+reference the configured required build command, a defined root `make build`
+target, or the controller-generated commands guide. The same deterministic
+check returns findings to the architect and documenter within their existing
+correction limits. It runs no build command or model. Optional or undeclared
+builds, historical records and unrelated feature guides retain their contracts.
+This is bounded command coverage, not free-form semantic claim verification:
+other heading conventions, arbitrary aliases and contradictory surrounding
+prose require independent review. The fixed corpus still misses three semantic defects; see
 [verification](VERIFICATION.md#not-verified).
 The full installed [context reference](../.claude/skills/kh/references/project-context.md)
 defines fields, source limits, preservation, review continuity and recovery.

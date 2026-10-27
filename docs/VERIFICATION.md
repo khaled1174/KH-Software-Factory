@@ -36,12 +36,40 @@ returns unknown stop counts, unknown human interventions and no invented history
 The seven-cause fixture is a deterministic test, not an owner usage measurement.
 See the [report contract and coverage limits](ARCHITECTURE.md#offline-intervention-reporting).
 
+## Configured build instruction checks
+
+The two frozen build-defect regressions failed on `82ff7fe`: both real
+`proposal_gate` results were incorrectly `passed: true` (`FAILED (failures=2)`).
+After the change, `test_documentation_commands.py` passed 25 tests, covering
+both real documenter gates, architect validation, a derived catalog reference,
+static Makefile targets, command boundaries, canonical shell quoting and root
+normalization. Historical records and optional builds remain accepted.
+The independent review's seven counterexamples failed before correction
+(`FAILED (failures=2, errors=5)`) and pass afterward: quoting and argument
+boundaries, unrelated unreadable Makefiles and apostrophes in the project root.
+
+The retained deterministic benchmark remains cold 10 to 10 and warm 8 to 8,
+with unchanged `by_role` counts and role order. The baseline is the merged
+main workflow [40452209943](https://github.com/khaled1174/KH-Software-Factory/actions/runs/40452209943);
+the PR workflow uploads fresh measurements and extracted-archive logs.
+
+On the unchanged frozen corpus, combined detection increased from 2/7 to 4/7,
+with zero false alarms on six correct guides and no provider calls. The two
+new rejections name the guide and declared build command. The six integrity
+controls retain their expected rejections. This is stage 2A; exception taxonomy,
+parser-position claims and unsupported dependency mandates remain open.
+
+The engine remains 17,667 physical Python lines: 25 lines added and 25 removed.
+Removed code is an uncalled retired-provider `UsageBreakdown.add_turn` method,
+an unused route tuple and two unused imports. Active usage fields and merging,
+guards, permissions, sandbox, quality floor and attempt limits are unchanged.
+
 ## Not verified
 
 No live provider experiment was run for this release. Deterministic fixtures do
 not establish general model quality, real-account availability or subscription
-billing. The offline documentation corpus detects two of seven defective guides,
-misses five, and produces zero false alarms on six correct guides; all six
+billing. The offline documentation corpus detects four of seven defective guides,
+misses three, and produces zero false alarms on six correct guides; all six
 integrity controls pass. These checks are not a general factual-accuracy gate.
 The Claude Code settings-isolation probe uses a local mock endpoint; CI skips
 that case when the CLI is unavailable. This does not test a real provider account.

@@ -959,25 +959,6 @@ class UsageBreakdown(BaseModel):
     cache_write_cost: float = 0.0
     total_cost: float = 0.0
 
-    def add_turn(self, usage: dict, total_tokens: int) -> None:
-        """Fold in one pi `message_end` usage object.
-
-        `total_tokens` is passed in rather than re-derived: the caller already
-        computes it pi's way (totalTokens, else the sum of the parts).
-        """
-        cost = usage.get("cost") or {}
-        self.input_tokens += usage.get("input") or 0
-        self.output_tokens += usage.get("output") or 0
-        self.cache_read_tokens += usage.get("cacheRead") or 0
-        self.cache_write_tokens += usage.get("cacheWrite") or 0
-        self.reasoning_tokens += usage.get("reasoning") or 0
-        self.total_tokens += total_tokens
-        self.input_cost += cost.get("input") or 0.0
-        self.output_cost += cost.get("output") or 0.0
-        self.cache_read_cost += cost.get("cacheRead") or 0.0
-        self.cache_write_cost += cost.get("cacheWrite") or 0.0
-        self.total_cost += cost.get("total") or 0.0
-
     def merge(self, other: "UsageBreakdown") -> None:
         """Add another call's usage — a phase that retries spends more than once."""
         for field in type(self).model_fields:

@@ -212,9 +212,10 @@ def analyze(root):
             stops.append(stop_record(task['id'], task['run_id'], task['blocker'], 'snapshot',
                 task['updated_at'], {**sources[0], 'record': 'tasks/' + task['id']}))
         history = [s for s in stops if s['task_id'] == task['id']]
+        current = [s for s in history if s['run_id'] == task['run_id']]
         for stop in history:
-            stop['currently_blocked'] = (stop is history[-1] and task['status'] == 'blocked'
-                                         and stop['run_id'] == task['run_id'])
+            stop['currently_blocked'] = bool(current and stop is current[-1]
+                                             and task['status'] == 'blocked')
     counts = Counter(s['category'] for s in stops)
     known = bool(sources)
     return {'schema_version': 1, 'root': root.as_posix(), 'observational_only': True, 'provider_calls': 0,

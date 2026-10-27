@@ -152,6 +152,12 @@ class InterventionReportTests(unittest.TestCase):
         self.assertEqual(report['recorded_stops'], 1)
         self.assertEqual(report['coverage'], 'partial')
         self.assertEqual(report['open_blockers'][0]['task_id'], 'T1')
+        # Older journal-only history must not hide the newer ledger blocker.
+        self.stop('T1', 'r2', 'OWNER_DECISION_REQUIRED: latest decision')
+        report = self.report()
+        self.assertEqual(report['recorded_stops'], 2)
+        self.assertEqual(len(report['open_blockers']), 1)
+        self.assertEqual(report['open_blockers'][0]['run_id'], 'r2')
 
     def test_unrelated_journal_failure_cannot_become_a_stop_gate_or_phase(self):
         self.init()

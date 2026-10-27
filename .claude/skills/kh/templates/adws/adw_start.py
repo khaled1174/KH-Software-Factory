@@ -108,10 +108,6 @@ def task_contract(task):
         required_checks=task['required_checks'])
 
 
-ROUTES = ('code_change', 'evidence_delivery', 'historical_evidence_unavailable', 'owner_decision',
-          'infrastructure_or_provider')
-
-
 def categories_of(reviewed) -> list[str]:
     """One action category per blocking item; an item the reviewer did not classify is a code change."""
     given = list(getattr(reviewed, 'blocker_categories', []) or [])

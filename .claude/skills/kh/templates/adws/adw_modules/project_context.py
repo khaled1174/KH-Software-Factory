@@ -14,6 +14,7 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import re
+import shlex
 import stat
 import tempfile
 from typing import Literal
@@ -452,6 +453,7 @@ def validate_proposal(root, proposal, baseline):
                 raise ContextBlocked('Preserve owner documentation verbatim: ' + rel)
             if not document.content.strip() or not document.applies_to:
                 raise ContextBlocked('Empty document or applicability: ' + rel)
+            validate_command_guide(root, document, baseline.get('commands', {}))
             total += len(document.content.encode()) if rel not in proposal.retained_paths else 0
             for candidate in _links(rel, document.content):
                 if not _path(root, candidate).exists() and candidate not in paths:
@@ -518,6 +520,28 @@ def command_declarations(root, cfg, observed):
     # Copies remap project-local absolute argv. Keep derived guide bytes identical.
     prefix = json.dumps(str(Path(root).resolve()), ensure_ascii=False)[1:-1]
     return json.loads(json.dumps(data, ensure_ascii=False).replace(prefix, '<project>'))
+
+
+def validate_command_guide(root, document, commands):
+    """Bounded coverage check for active guides listing run and test instructions."""
+    argv = commands.get('quality_checks', {}).get('build')
+    if (document.purpose != 'guide' or document.status != 'active' or not argv
+            or 'build' not in commands.get('required_quality_checks', [])):
+        return
+    if not all(re.search(r'(?im)^\s*(?:#{1,6}\s*)?' + label + r'\s*:', document.content)
+               for label in ('run', 'tests?')):
+        return
+    references = [shlex.join(argv), shlex.join([v.replace('<project>', str(Path(root).resolve())) for v in argv])]
+    if COMMANDS_PATH in _links(document.path, document.content):
+        return
+    boundary = r'(?=$|\s|[`)]|[.,;](?=$|\s))'
+    if re.search(r'(?<![\w./-])(?:' + '|'.join(map(re.escape, references)) + ')' + boundary, document.content):
+        return
+    if re.search(r'(?<![\w./-])make build' + boundary, document.content) and re.search(
+            r'(?m)^build\s*:(?![=:])', _read(root, 'Makefile') or ''):
+        return
+    raise ContextBlocked('Operating guide omits declared required build: ' + document.path
+                         + '; reference ' + references[0] + ' or ' + COMMANDS_PATH)
 
 
 def render_commands(data):

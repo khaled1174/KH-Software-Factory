@@ -11,7 +11,6 @@ import hashlib
 import json
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Callable
 
 from .data_types import (EventRecord, QualityCheckResult, QualityCheckSpec, QualityResult,
                          VerifyOutput)

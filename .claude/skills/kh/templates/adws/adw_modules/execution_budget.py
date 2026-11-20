@@ -4,10 +4,10 @@ Monotonic time enforces a live deadline. Persisted wall-clock timing is evidence
 not permission to reset a run after restart; existing stage IDs are rejected.
 """
 import json
-import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from .scope import _parent_fd, _write_bytes_at
 
 
 class BudgetExceeded(RuntimeError):
@@ -39,13 +39,8 @@ class ExecutionBudget:
             transient_retries=self.transient_retries, recoveries=self.recoveries, stop_reason=self.stop_reason)
 
     def save(self):
-        temporary = self.path.with_suffix('.tmp')
-        # Session directory is controller-owned and excluded from worker writes.
-        with temporary.open('w', encoding='utf-8') as handle:
-            json.dump(self.snapshot(), handle, indent=2)
-            handle.flush()
-            os.fsync(handle.fileno())
-        temporary.replace(self.path)
+        with _parent_fd(self.path) as (parent, name):
+            _write_bytes_at(parent, name, json.dumps(self.snapshot(), indent=2).encode())
 
 
 def start_budget(run, policy, stage='task'):

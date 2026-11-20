@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Read-only observability UI for the KH — polls kh.db in a target repo.",
+  "description": "Local KH task review and trace UI with optional guarded actions.",
   "scripts": {
     "dev": "bun run build && bun run server",
     "server": "bun run server/index.ts",

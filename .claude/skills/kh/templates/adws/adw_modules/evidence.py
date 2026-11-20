@@ -9,21 +9,23 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import secrets
 import stat
 
-from .scope import ScopeViolation, _atomic_json, _parent_fd, _read_json
+from .scope import ScopeViolation, _atomic_json, _parent_fd, _read_json, _write_bytes_at
 
 KEYS = {'artifacts', 'output_artifact', 'document_path'}
 
 
-def _read(path):
+def _read(path, *, limit=None):
     with _parent_fd(Path(path)) as (parent, name):
         descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=parent)
         with os.fdopen(descriptor, 'rb') as stream:
             if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
                 raise ScopeViolation(f'Evidence is not a regular file: {path}')
-            return stream.read()
+            data = stream.read() if limit is None else stream.read(limit + 1)
+            if limit is not None and len(data) > limit:
+                raise ScopeViolation(f'Evidence exceeds the byte limit: {path}')
+            return data
 
 
 def _files(root, select=None):
@@ -64,19 +66,7 @@ def _write_new(path, data):
             if not stat.S_ISREG(existing.st_mode) or _read(path) != data:
                 raise ScopeViolation(f'Existing controller evidence differs: {path}')
             return
-        temporary = f'.{name}.{secrets.token_hex(12)}.tmp'
-        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
-                             0o600, dir_fd=parent)
-        try:
-            with os.fdopen(descriptor, 'wb') as stream:
-                stream.write(data)
-                stream.flush()
-                os.fsync(stream.fileno())
-            # Hard-link publication refuses any concurrently created target.
-            os.link(temporary, name, src_dir_fd=parent, dst_dir_fd=parent, follow_symlinks=False)
-            os.fsync(parent)
-        finally:
-            os.unlink(temporary, dir_fd=parent)
+        _write_bytes_at(parent, name, data, exclusive=True)
 
 
 def _replace_bytes(path, data):
@@ -85,19 +75,7 @@ def _replace_bytes(path, data):
         info = os.stat(name, dir_fd=parent, follow_symlinks=False)
         if not stat.S_ISREG(info.st_mode):
             raise ScopeViolation(f'Refusing non-regular derived record: {path}')
-        temporary = f'.{name}.{secrets.token_hex(12)}.tmp'
-        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
-                             0o600, dir_fd=parent)
-        try:
-            with os.fdopen(descriptor, 'wb') as stream:
-                stream.write(data)
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.replace(temporary, name, src_dir_fd=parent, dst_dir_fd=parent)
-            os.fsync(parent)
-        finally:
-            try: os.unlink(temporary, dir_fd=parent)
-            except FileNotFoundError: pass
+        _write_bytes_at(parent, name, data)
 
 
 def _rebase(value, staging_root, owner_root):
@@ -214,6 +192,7 @@ def publish_staged_evidence(run, view, *, status='candidate'):
     entry = {'staging_root': str(staging_root), 'owner_root': str(owner_root),
              'status': status, 'artifact_keys': sorted(KEYS),
              'published_handoff_files': [p.as_posix() for p in sorted(source_files)],
+             'published_handoff_sha256': {p.as_posix(): hashlib.sha256(data).hexdigest() for p, data in source_files.items()},
              'original_records': 'evidence-reference-originals',
              'source_promoted': 'not established by evidence publication'}
     mapping['mappings'] = [x for x in mapping['mappings'] if x.get('staging_root') != str(staging_root)] + [entry]

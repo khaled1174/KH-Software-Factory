@@ -6,7 +6,7 @@ multi-file atomicity. Existing owner files are retained verbatim.
 """
 from __future__ import annotations
 from .utils import digest
-from . import execution_budget
+from . import execution_budget, scope
 import ast
 import fnmatch
 import hashlib
@@ -17,7 +17,6 @@ from pathlib import Path, PurePosixPath
 import re
 import shlex
 import stat
-import tempfile
 from typing import Literal
 from types import SimpleNamespace
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_serializer, model_validator
@@ -468,17 +467,9 @@ def validate_proposal(root, proposal, baseline):
 
 
 def _atomic(root, relative, text):
-    target = _path(root, relative)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    fd, name = tempfile.mkstemp(prefix='.context-', dir=target.parent)
-    try:
-        with os.fdopen(fd, 'w') as stream:
-            stream.write(text); stream.flush(); os.fsync(stream.fileno())
+    with scope._parent_fd(_path(root, relative), create=True) as (parent, name):
         _path(root, relative)
-        os.replace(name, target)
-    finally:
-        if os.path.exists(name):
-            os.unlink(name)
+        scope._write_bytes_at(parent, name, text.encode())
 
 
 def recover_publication(root):
@@ -524,12 +515,34 @@ def command_declarations(root, cfg, observed):
     return json.loads(json.dumps(data, ensure_ascii=False).replace(prefix, '<project>'))
 
 
+def _prose(content):
+    return re.sub(r'(?ms)^[ ]{0,3}(?=[^\n]*\n)(?P<fence>(?P<mark>`|~)(?P=mark){2,})[^\n]*\n.*?'
+                  r'(?:^[ ]{0,3}(?P=fence)(?P=mark)*[ \t]*(?:\n|\Z)|\Z)', lambda m: '\n' * m[0].count('\n'), content.replace('\r\n', '\n'))
+
+
 def validate_library_claims(root, document):
-    """Refute direct coordinate claims only for a cited, unshadowed stdlib call."""
+    """Check supported library statements without executing project source."""
     if (document.purpose, document.status) != ('guide', 'active'):
         return
-    prose = re.sub(r'(?ms)^[ ]{0,3}(?=[^\n]*\n)(?P<fence>(?P<mark>`|~)(?P=mark){2,})[^\n]*\n.*?'
-                   r'(?:^[ ]{0,3}(?P=fence)(?P=mark)*[ \t]*(?:\n|\Z)|\Z)', '', document.content.replace('\r\n', '\n'))
+    prose = _prose(document.content)
+    phrase = r'Use only (?:the )?Python standard library'
+    rule = r'(?im)(?:\A|(?<=\n\n))' + phrase + r'(?: \((?P<source>[^\n]+):(?P<line>[0-9]+)\))?\.?[ \t]*(?=\n\n|\n?\Z)'
+    for claim in re.finditer(rule, prose if document.path.startswith('docs/agent-guide/') else ''):
+        info = inspect_context(root)
+        rows = {row['path']: row for row in info.get('index', {}).get('documents', [])}
+        owners = {p: c for p, c in info.get('observed', {}).get('documents', {}).items()
+                  if not rows.get(p, {}).get('managed') or rows[p].get('digest') != digest(c)}
+        if owners.get(document.path) == document.content:
+            continue
+        source = _prose(owners.get(claim['source'], ''))
+        line = next((m[0] for m in re.finditer(r'(?im)(?:\A|(?<=\n\n))[ ]{0,3}(?:[-*] )?' + phrase + r'\.?[ \t]*(?=\n\n|\n?\Z)', source)
+                     if str(source.count('\n', 0, m.start()) + 1) == claim['line'].lstrip('0')), '')
+        if not (claim['source'] and PurePosixPath(claim['source']).name in {'CLAUDE.md', 'AGENTS.md'}
+                and line
+                and all(p == posixpath.normpath(p) and scope._contains(
+                    str(PurePosixPath(claim['source']).parent / '**'), p) for p in _applicability(document.path, document.applies_to))):
+            raise ContextBlocked('Unsubstantiated dependency rule: ' + document.path
+                                 + '; cite a preserved owner instruction at file:line within the guide scope')
     pattern = (r'(?m)(?:\A|(?<=\n\n))(?:json\.)?JSONDecodeError\s+(?:has\s+no|lacks|does\s+not\s+provide)\s+(?:parser\s+)?'
                r'(?P<properties>(?:line(?:\s+number)?|lineno|column(?:\s+number)?|colno|position)\b[^\n]*?)'
                r'\((?P<path>[\w./-]+\.py):(?P<line>\d+)\)\.[ \t]*(?=\n\n|\n?\Z)')

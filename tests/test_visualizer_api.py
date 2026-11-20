@@ -5,8 +5,8 @@ installation, provider calls, or browser needed.
 """
 import os as _os, tempfile as _tempfile, pathlib as _pathlib  # macOS: the temp root (/var/...) is a symlink;
 _tempfile.tempdir = _os.environ['TMPDIR'] = str(_pathlib.Path(_tempfile.gettempdir()).resolve())  # KH refuses symlinked state paths
-import ast
 from contextlib import closing, contextmanager
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -23,7 +23,7 @@ from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / '.claude/skills/kh/apps/visualizer'
-TRACER = ROOT / '.claude/skills/kh/templates/adws/adw_modules/tracer.py'
+TRACE_SCHEMA = ROOT / '.claude/skills/kh/templates/adws/adw_modules/trace-schema.sql'
 BUN = os.environ.get('KH_BUN') or shutil.which('bun')
 
 
@@ -36,11 +36,7 @@ class VisualizerApiTests(unittest.TestCase):
         self.root.mkdir()
         self.db_path = self.root / 'adws/adw_data/kh.db'
         self.db_path.parent.mkdir(parents=True)
-        tree = ast.parse(TRACER.read_text())
-        schema = next(ast.literal_eval(node.value) for node in tree.body
-                      if isinstance(node, ast.Assign) and any(
-                          isinstance(target, ast.Name) and target.id == 'SCHEMA'
-                          for target in node.targets))
+        schema = TRACE_SCHEMA.read_text(encoding='utf-8')
         self.conn = sqlite3.connect(self.db_path)
         self.addCleanup(self.conn.close)
         self.conn.execute('PRAGMA journal_mode=WAL')
@@ -306,6 +302,240 @@ class VisualizerApiTests(unittest.TestCase):
             other.write_text(json.dumps(self.snapshot()))
             file.symlink_to(other)
             self.assertEqual(400, self.request(base, '/api/project')[0])
+
+    def review_ledger(self):
+        folder = self.root / '.kh'
+        folder.mkdir()
+        snapshot = self.snapshot()
+        definition = json.dumps(snapshot['tasks'][0])
+        snapshot['tasks'][0].update(run_id='run-a', status='blocked', blocker='Old projection')
+        (folder / 'project-status.json').write_text(json.dumps(snapshot))
+        with closing(sqlite3.connect(folder / 'project.db')) as conn, conn:
+            conn.executescript("""
+                PRAGMA user_version=1;
+                CREATE TABLE tasks(id TEXT PRIMARY KEY, definition TEXT, status TEXT, run_id TEXT,
+                    summary TEXT, blocker TEXT, updated_at TEXT, changed_files TEXT);
+                CREATE TABLE attempts(run_id TEXT PRIMARY KEY, task_id TEXT);
+                CREATE TABLE events(sequence INTEGER PRIMARY KEY, task_id TEXT, run_id TEXT,
+                    event TEXT, detail TEXT, created_at TEXT);
+            """)
+            conn.execute("INSERT INTO tasks VALUES ('t1', ?, 'blocked', 'run-b', '', 'Latest check failed', ?, '[]')",
+                         (definition, '2026-01-03T10:00:00Z'))
+            conn.execute("INSERT INTO tasks VALUES ('t2', ?, 'completed', 'run-c', '', NULL, ?, '[]')",
+                         (json.dumps({'id': 't2'}), '2026-01-04T10:00:00Z'))
+            conn.executemany("INSERT INTO attempts VALUES (?, ?)",
+                             [('run-a', 't1'), ('run-b', 't1'), ('run-c', 't2')])
+            conn.executemany("INSERT INTO events (task_id, run_id, event, detail, created_at) VALUES ('t1', ?, ?, ?, ?)", [
+                ('run-a', 'running', 'null', '2026-01-01T10:00:00Z'),
+                ('run-a', 'blocked', json.dumps('Owner review required'), '2026-01-01T11:00:00Z'),
+                ('run-b', 'running', 'null', '2026-01-03T09:00:00Z'),
+                ('run-b', 'blocked', json.dumps('Latest check failed'), '2026-01-03T10:00:00Z'),
+            ])
+        return hashlib.sha256(definition.encode()).hexdigest()
+
+    def quality_phase(self, run, round_number, passed, tail):
+        phase = f'{run}-checks-{round_number}'
+        self.conn.execute("INSERT INTO phases (phase_id,adw_id,seq,name,kind,owner) VALUES (?,?,?,?,?,?)",
+                          (phase, run, round_number * 2, f'checks_{round_number}', 'code', 'quality'))
+        check = {'name': 'test', 'passed': passed, 'returncode': 0 if passed else 1, 'output_tail': tail}
+        self.conn.execute("INSERT INTO events (event_id,adw_id,phase_id,type,name,payload_json) VALUES (?,?,?,?,?,?)",
+                          (phase + '-log', run, phase, 'log', f'checks_{round_number}',
+                           json.dumps({'passed': passed, 'checks': [check]})))
+        self.conn.commit()
+
+    def controller_patch(self, run, patch, *, listed=True):
+        session = self.db_path.parent / 'sessions' / run
+        handoff = session / 'context_handoff'
+        handoff.mkdir(parents=True, exist_ok=True)
+        path = handoff / 'controller_diff_1.patch'
+        path.write_bytes(patch)
+        (session / 'artifact-map.json').write_text(json.dumps({'version': 1, 'mappings': [{
+            'owner_root': str(self.root),
+            'published_handoff_files': [path.name] if listed else [],
+        }]}))
+        return path
+
+    def review(self, base, run=None, task='t1'):
+        query = '?' + urlencode({'run_id': run}) if run is not None else ''
+        return self.request(base, f'/api/project/tasks/{task}/review{query}')
+
+    def test_review_uses_ledger_history_and_evidence_from_exact_attempt_and_round(self):
+        digest = self.review_ledger()
+        patch = b'diff --kh a/src/main.py b/src/main.py\n--- a/src/main.py\n+++ b/src/main.py\n@@ -1 +1 @@\n-before\n+after\n'
+        self.quality_phase('run-a', 1, True, 'held-check-output')
+        self.quality_phase('run-b', 1, True, 'obsolete-check-output')
+        self.quality_phase('run-b', 2, False, 'literal failing output')
+        self.controller_patch('run-a', patch)
+        self.controller_patch('run-b', b'Obsolete patch from first correction round')
+        self.conn.execute("INSERT INTO phases (phase_id,adw_id,seq,name,kind,owner) VALUES (?,?,?,?,?,?)",
+                          ('review-a', 'run-a', 3, 'review_1', 'agent', 'reviewer'))
+        verdict = json.dumps({'approved': True, 'summary': 'Check and diff reviewed', 'blocking': [],
+                              'findings': [{'requirement': 'Expected source', 'met': True, 'evidence': 'src/main.py'}]})
+        self.conn.execute("INSERT INTO envelopes (envelope_id,adw_id,phase_id,agent,output_type,payload_json,valid) VALUES (?,?,?,?,?,?,?)",
+                          ('review-envelope', 'run-a', 'review-a', 'reviewer', 'ReviewOutput', verdict, 1))
+        self.conn.commit()
+        ledger = self.root / '.kh' / 'project.db'
+        original = ledger.read_bytes()
+        with self.server() as base:
+            code, data = self.review(base)
+            self.assertEqual(200, code, data)
+            self.assertEqual('run-b', data['task']['run_id'])
+            self.assertEqual(digest, data['task_definition_sha256'])
+            self.assertEqual(['run-b', 'run-a'], [item['run_id'] for item in data['attempts']])
+            self.assertEqual('run-b', data['selected_attempt']['run_id'])
+            self.assertEqual('Latest check failed', data['selected_attempt']['blocker'])
+            self.assertEqual(2, data['phase']['round'])
+            self.assertEqual('literal failing output', data['checks'][0]['output_tail'])
+            self.assertIsNone(data['diff'])
+            self.assertTrue(data['diff_unavailable'])
+            code, old = self.review(base, 'run-a')
+            self.assertEqual(200, code, old)
+            self.assertEqual('Owner review required', old['selected_attempt']['blocker'])
+            self.assertEqual('held-check-output', old['checks'][0]['output_tail'])
+            self.assertEqual('Expected source', old['review']['findings'][0]['requirement'])
+            self.assertEqual({'artifact': 'controller_diff_1.patch', 'round': 1,
+                              'sha256': hashlib.sha256(patch).hexdigest(), 'text': patch.decode()}, old['diff'])
+            self.assertEqual(404, self.review(base, 'run-c')[0])
+            self.assertEqual(404, self.review(base, 'run-a', task='t2')[0])
+            self.assertEqual(400, self.review(base, '../run-c')[0])
+        self.assertEqual(original, ledger.read_bytes())
+
+    def test_review_diff_line_numbers_bind_to_the_controller_hunk_and_side(self):
+        patch = ('diff --kh a/src/path b/part.py b/src/path b/part.py\r\n'
+                 '--- a/src/path b/part.py\r\n+++ b/src/path b/part.py\r\n'
+                 '@@ -2,2 +7,2 @@\r\n value\r\n-old\r\n+new\r\n'
+                 '\\ No newline at end of file\r\n'
+                 'diff --kh a/blob b/blob\nbinary change\n')
+        script = (f"import {{parseReviewDiff}} from {json.dumps(str(APP / 'shared/review-diff.ts'))};"
+                  f"console.log(JSON.stringify(parseReviewDiff({json.dumps(patch)})));")
+        result = subprocess.run([BUN, '-e', script], text=True, capture_output=True, check=True)
+        files = json.loads(result.stdout)
+        self.assertEqual(['src/path b/part.py', 'blob'], [file['path'] for file in files])
+        self.assertEqual([
+            {'kind': 'context', 'text': 'value', 'oldLine': 2, 'newLine': 7},
+            {'kind': 'removed', 'text': 'old', 'oldLine': 3, 'newLine': None},
+            {'kind': 'added', 'text': 'new', 'oldLine': None, 'newLine': 8},
+        ], files[0]['lines'][3:6])
+        self.assertEqual([{'kind': 'meta', 'text': 'binary change', 'oldLine': None, 'newLine': None}],
+                         files[1]['lines'])
+
+    def test_review_rejects_unpublished_oversized_unsafe_and_unmatched_diff(self):
+        self.review_ledger()
+        self.quality_phase('run-a', 1, True, 'Recorded test')
+        patch = self.controller_patch('run-a', b'Unpublished content', listed=False)
+        with self.server() as base:
+            self.assertIsNone(self.review(base, 'run-a')[1]['diff'])
+            self.controller_patch('run-a', b'x' * (1024 * 1024 + 1))
+            self.assertIsNone(self.review(base, 'run-a')[1]['diff'])
+            self.controller_patch('run-a', b'text\x00binary')
+            self.assertIsNone(self.review(base, 'run-a')[1]['diff'])
+            secret = self.root / 'secret.txt'
+            secret.write_text('private content')
+            patch.unlink()
+            patch.symlink_to(secret)
+            code, data = self.review(base, 'run-a')
+            self.assertEqual(200, code, data)
+            self.assertIsNone(data['diff'])
+            self.assertNotIn('private content', json.dumps(data))
+            patch.unlink()
+            self.controller_patch('run-a', b'Changed proof')
+            manifest_file = patch.parent.parent / 'artifact-map.json'
+            manifest = json.loads(manifest_file.read_text())
+            manifest['mappings'][0]['published_handoff_sha256'] = {
+                patch.name: hashlib.sha256(b'Original proof').hexdigest(),
+            }
+            manifest_file.write_text(json.dumps(manifest))
+            self.assertIsNone(self.review(base, 'run-a')[1]['diff'])
+            self.controller_patch('run-a', b'Phase missing')
+            self.conn.execute("DELETE FROM phases WHERE phase_id='run-a-checks-1'")
+            self.conn.commit()
+            self.assertIsNone(self.review(base, 'run-a')[1]['diff'])
+
+    def test_projection_without_ledger_only_shows_projected_attempt(self):
+        folder = self.root / '.kh'
+        folder.mkdir()
+        snapshot = self.snapshot()
+        snapshot['tasks'][0].update(run_id='run-a', status='blocked', blocker='Projected blocker')
+        (folder / 'project-status.json').write_text(json.dumps(snapshot))
+        self.quality_phase('run-a', 1, True, 'Trace output')
+        self.controller_patch('run-a', b'Source proof unavailable')
+        with self.server() as base:
+            code, data = self.review(base)
+            self.assertEqual(200, code, data)
+            self.assertFalse(data['history_available'])
+            self.assertEqual('Projected blocker', data['selected_attempt']['blocker'])
+            self.assertIsNone(data['task_definition_sha256'])
+            self.assertIsNone(data['diff'])
+            self.assertEqual(404, self.review(base, 'run-b')[0])
+
+    def test_review_shows_the_held_round_categories_and_matching_intent(self):
+        self.review_ledger()
+        self.quality_phase('run-b', 1, True, 'Check passed')
+        patch = self.controller_patch('run-b', b'Held diff')
+        flags = patch.parent / 'owner_review_1.json'
+        flags.write_text(json.dumps([{'category': 'auth', 'why': 'Changed authorization'}]))
+        manifest_file = patch.parent.parent / 'artifact-map.json'
+        manifest = json.loads(manifest_file.read_text())
+        manifest['mappings'][0]['published_handoff_files'].append(flags.name)
+        manifest_file.write_text(json.dumps(manifest))
+        intents = self.root / 'intents'
+        intents.mkdir()
+        (intents / 'feature.md').write_text('## Task request\nBuild feature\n\n## Outcome\nA relevant change\n')
+        (intents / 'other.md').write_text('## Task request\nDifferent feature\n')
+        with closing(sqlite3.connect(self.root / '.kh' / 'project.db')) as conn, conn:
+            conn.execute("UPDATE tasks SET blocker='OWNER_REVIEW_REQUIRED: auth' WHERE id='t1'")
+        with self.server() as base:
+            code, data = self.review(base, 'run-b')
+            self.assertEqual(200, code, data)
+            self.assertEqual({'categories': [{'category': 'auth', 'why': 'Changed authorization'}],
+                              'intent_path': 'intents/feature.md'}, data['owner_hold'])
+            self.assertIsNone(data['decision_draft'])
+            self.assertIsNone(self.review(base, 'run-a')[1]['owner_hold'])
+
+    def test_review_shows_only_the_verified_decision_draft_and_named_invocations(self):
+        self.review_ledger()
+        self.quality_phase('run-b', 1, True, 'Check passed')
+        patch = self.controller_patch('run-b', b'Checked diff')
+        candidate_digest = 'a' * 64
+        artifact = 'controller_inputs/decision_draft-002.json'
+        draft = patch.parent / artifact
+        draft.parent.mkdir()
+        draft.write_text(json.dumps({'schema_version': 1, 'in_force': False,
+                                     'identity': {'candidate_sha256': candidate_digest},
+                                     'findings': [{'text': 'Missing verification', 'category': 'owner_decision'}],
+                                     'draft_decisions': [
+                                         {'kind': 'historical_exception', 'task': 't1', 'invocations': ['run-b#92']},
+                                         {'kind': 'historical_exception', 'task': 't2', 'invocations': ['run-c#91']},
+                                     ]}))
+        digest = hashlib.sha256(draft.read_bytes()).hexdigest()
+        receipt = json.dumps({'schema_version': 1, 'run_id': 'run-b', 'files': {
+            artifact: {'sha256': digest, 'kind': 'decision_draft', 'producer': 'controller'},
+        }})
+        receipt_digest = hashlib.sha256(receipt.encode()).hexdigest()[:12]
+        receipt_path = f'controller_inputs/receipts/00000000000000000123-{receipt_digest}.json'
+        (patch.parent / receipt_path).parent.mkdir()
+        (patch.parent / receipt_path).write_text(receipt)
+        manifest_file = patch.parent.parent / 'artifact-map.json'
+        manifest = json.loads(manifest_file.read_text())
+        manifest['mappings'][0]['published_handoff_files'].extend([artifact, receipt_path])
+        manifest_file.write_text(json.dumps(manifest))
+        current = self.root / '.kh' / 'work' / 't1' / 'current'
+        current.mkdir(parents=True)
+        (current / 'meta.json').write_text(json.dumps({
+            'schema': 2, 'run_id': 'run-b', 'task': 't1',
+            'checked': {'candidate_sha256': candidate_digest, 'verification_result': {'passed': True}},
+        }))
+        blocker = 'OWNER_DECISION_REQUIRED: a decision draft is at decision_draft-002.json in the controller inputs.'
+        with closing(sqlite3.connect(self.root / '.kh' / 'project.db')) as conn, conn:
+            conn.execute("UPDATE tasks SET blocker=? WHERE id='t1'", (blocker,))
+        with self.server() as base:
+            code, data = self.review(base, 'run-b')
+            self.assertEqual(200, code, data)
+            self.assertEqual(['run-b#92'], data['decision_draft']['invocations'])
+            self.assertEqual(digest, data['decision_draft']['sha256'])
+            self.assertTrue(data['decision_draft']['checked_candidate_recorded'])
+            draft.write_text(draft.read_text().replace('run-b#92', 'run-b#99'))
+            self.assertIsNone(self.review(base, 'run-b')[1]['decision_draft'])
 
     def test_cost_known_new_and_old_database(self):
         with self.server() as base:

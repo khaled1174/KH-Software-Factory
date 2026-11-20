@@ -121,7 +121,15 @@ dynamic namespace changes remain under existing review. Loader-record prefixes
 are distinct from parser coordinates. Fenced examples and qualified prose are
 excluded from this bounded check. Arbitrary paraphrases, incomplete assertions, transitive
 imports and runtime import-environment changes are not resolved by it.
-The fixed corpus still misses two semantic defects; see
+A complete unqualified "Use only the Python standard library" paragraph in a
+new active agent guide requires an exact file:line citation to a preserved owner
+AGENTS.md or CLAUDE.md instruction. The instruction must be an affirmative,
+standalone paragraph applying to the entire guide scope. Unchanged owner guides
+are preserved; unchanged model-managed instructions cannot authorize themselves.
+Fenced examples and task-qualified source paragraphs cannot provide that evidence.
+This checks one bounded directive form, not arbitrary paraphrases or the intent of
+surrounding prose. Independent review remains necessary for those cases.
+The fixed corpus still misses the exception-generalization defect; see
 [verification](VERIFICATION.md#not-verified).
 The full installed [context reference](../.claude/skills/kh/references/project-context.md)
 defines fields, source limits, preservation, review continuity and recovery.
@@ -165,9 +173,15 @@ usage is differenced rather than added repeatedly; subscription billing is not
 inferred from estimated query prices. Failed attempts retain their trace and
 partial usage. Cost is information, never a stopping threshold.
 
-The local trace UI reads existing events and project reports. It can archive a
-session's review flag but cannot dispatch or approve. Missing history remains
-unknown; a fetched snapshot is not proof that an agent is alive.
+The local review page joins ledger attempts, trace events, and published
+evidence by task and run. The optional local action launcher saves a reply,
+previews the saved role configuration, and submits one request to the guarded
+entry point. The owner unlocks the browser tab with a private launch key.
+The controller checks the request under the repository lease.
+The launch binds to the confirmed role setup and uses the recorded execution
+mode when available. Line replies bind to the exact published diff and kept
+candidate. The ledger records the new attempt and the controller decides
+acceptance. Missing or unconfirmed history is displayed as unknown.
 See [observability](../.claude/skills/kh/references/observability.md).
 
 ## Offline intervention reporting

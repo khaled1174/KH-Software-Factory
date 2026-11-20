@@ -1,10 +1,11 @@
 import { ref } from 'vue'
 
-// Hash routes: #/ → sessions · #/<adw_id> → waterfall · #/<adw_id>/<phase_id> → phase panel open
+// The review route reserves its third segment so old one- and two-part run links keep working.
 export interface Route {
-  view: 'project' | 'run'
+  view: 'project' | 'run' | 'review'
   adwId: string | null
   phaseId: string | null
+  taskId?: string
 }
 
 function parse(): Route {
@@ -12,7 +13,12 @@ function parse(): Route {
     .replace(/^#\/?/, '')
     .split('/')
     .filter(Boolean)
-    .map(decodeURIComponent)
+    .map((part) => {
+      try { return decodeURIComponent(part) } catch { return part }
+    })
+  if (parts[0] === 'review' && parts[1] && parts[2] === 'attempts') {
+    return { view: 'review', taskId: parts[1], adwId: parts[3] ?? null, phaseId: null }
+  }
   return { view: parts[0] ? 'run' : 'project', adwId: parts[0] ?? null, phaseId: parts[1] ?? null }
 }
 
@@ -35,6 +41,11 @@ export function hrefFor(adwId?: string | null, phaseId?: string | null): string 
   if (adwId) h += encodeURIComponent(adwId)
   if (adwId && phaseId) h += `/${encodeURIComponent(phaseId)}`
   return h
+}
+
+export function reviewHref(taskId: string, runId?: string | null): string {
+  const page = `#/review/${encodeURIComponent(taskId)}/attempts`
+  return runId ? `${page}/${encodeURIComponent(runId)}` : page
 }
 
 export function navigate(adwId?: string | null, phaseId?: string | null): void {

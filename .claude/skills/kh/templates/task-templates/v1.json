@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "templates": {
+    "bug-fix": {
+      "task_kind": "bug",
+      "deliverables": [
+        "Record the expected result, observed result, reproducible steps, and first incorrect source boundary.",
+        "Retain a regression result that fails on the broken behavior and passes on the correction. Record any unavailable reproduction as a limitation."
+      ]
+    },
+    "interface": {
+      "task_kind": "feature",
+      "deliverables": [
+        "Verify the user journey and its observable outcome in the project test harness, including an applicable negative or empty state.",
+        "Retain the actual test result and relevant capture. Verify output contents when the feature produces an artifact."
+      ]
+    },
+    "maintenance": {
+      "task_kind": "maintenance",
+      "deliverables": [
+        "Identify the existing caller behavior and data formats that must continue to work.",
+        "Retain actual compatibility checks. Include migration and rollback evidence when the change affects persisted state."
+      ]
+    }
+  }
+}

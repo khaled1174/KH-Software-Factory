@@ -143,7 +143,14 @@ PRAGMA synchronous=NORMAL;
 PRAGMA busy_timeout=5000;
 ```
 
-WAL allows readers during writes. Writers are the tracers of running ADW processes; concurrent writers are fine given one small transaction per event plus `busy_timeout`. The visualizer reads on a readonly connection with exactly one exception: archiving a session (`POST /api/sessions/:adw_id/archive`) opens a second connection to set `sessions.archived`. That flag is review triage — it says a human has looked at the run — so it is the reader's state living on the row, and no tracer ever writes or reads it.
+WAL allows readers during writes. Running ADW processes write one small
+transaction per trace event with `busy_timeout`. The visualizer reads the
+trace on a read-only connection. Archiving a session opens a second connection
+to set the reader-owned `sessions.archived` flag.
+
+Task reviews read the ledger and each attempt's published evidence. Optional
+review actions store local requests in `.kh/review-requests/`. The guarded
+controller records the resulting attempt and decides its acceptance.
 
 ## Polling contract
 

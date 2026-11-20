@@ -15,11 +15,10 @@ from contextlib import contextmanager
 
 from adw_modules import agents, delta, gates, permissions, quality, routing, scope, session, utils, project
 from adw_modules.data_types import AgentCall, BuildOutput, PhaseParams, PlanOutput, ReviewOutput
-from adw_modules.workspace import AgentWorkspace
+from adw_modules.workspace import AgentWorkspace, exclusions
 from adw_modules import planning, project_context, verification_evidence, execution_budget, intent, owner_review, floor_guard
-from adw_modules import resume
+from adw_modules import resume, review_feedback
 from adw_modules import dispositions, evidence_packet, findings, infrastructure, timing
-from adw_modules.workspace import exclusions
 from adw_modules.execution_policy import resolve_execution_policy, resolve_bootstrap_policy, validate_light_paths
 from adw_modules.process_io import RoleTimeout
 from adw_modules import documentation
@@ -51,14 +50,6 @@ def durable_stage(run, phase, builder):
                     run.console.note(f'Failed candidate evidence could not be fully preserved: {error}')
 
 
-def kept_paths(work):
-    """Every candidate change to keep for a later run, directories included."""
-    current = permissions.snapshot(work.view)
-    output = work.view.agent_output_relative
-    return sorted(p for p in permissions.changed_paths(work.view.agent_baseline, current)
-                  if not p.startswith('@git/') and p != output and not p.startswith(output + '/'))
-
-
 def last_feedback(envelope) -> str:
     """What the last failed check said, for the builder that continues the work.
 
@@ -75,15 +66,15 @@ def last_feedback(envelope) -> str:
     return ' '.join(p for p in parts if p)
 
 
-def source_paths(work):
-    current = permissions.snapshot(work.view)
+def source_paths(work, *, current=None, include_structural=False):
+    current = permissions.snapshot(work.view) if current is None else current
     touched = permissions.changed_paths(work.view.agent_baseline, current)
     output = work.view.agent_output_relative
     # A directory that merely appears or disappears is covered by its contents;
     # a kind change or a mode change on an existing directory is reviewed itself.
     return sorted(p for p in touched if not p.startswith('@git/')
                   and p != output and not p.startswith(output + '/')
-                  and not permissions.structural_directory(p, work.view.agent_baseline, current))
+                  and (include_structural or not permissions.structural_directory(p, work.view.agent_baseline, current)))
 
 
 def spend(run) -> dict:
@@ -372,7 +363,7 @@ def _resume_save(state: TaskState, reason):
     # with their owner-baseline identity instead (SYS-06).
     keep, refused = [], list(getattr(state.view, 'rejected_paths', None) or [])
     now = permissions.snapshot(state.view)
-    for rel in kept_paths(state.staged):
+    for rel in source_paths(state.staged, current=now, include_structural=True):
         # Directories are covered by their contents, as in enforcement.
         if any(e is not None and e.kind == 'directory' for e in
                (state.view.task_baseline.entries.get(rel), now.entries.get(rel))):
@@ -688,7 +679,7 @@ def _accept_or_repair(state: TaskState):
     return False
 
 
-def _open_task(state: TaskState, prepare_context, context_state):
+def _open_task(state: TaskState, prepare_context, context_state, feedback=None):
     # An interrupted builder is a failed phase, not yet the task's final
     # outcome. The guarded controller settles the session after recovery.
     state.run.defer_phase_failure_finish = True
@@ -703,7 +694,8 @@ def _open_task(state: TaskState, prepare_context, context_state):
         current = project.load_task(state.run.repo_root, state.task_id)
         if task_contract(current) != state.contract:
             raise ValueError('Project task scope differs from the recorded plan')
-        project.begin_task(state.run.repo_root, state.task_id, state.run.adw_id, require_plan_review=True)
+        project.begin_task(state.run.repo_root, state.task_id, state.run.adw_id,
+                           require_plan_review=True, review_feedback=feedback)
         state.leased = True
     scope.capture_contract(state.run, state.contract)
     infrastructure.run_capability_checks(state.cfg, utils.operator_env(), state.run.session_dir)
@@ -754,11 +746,12 @@ def _stage_inputs(state: TaskState, owner_evidence):
     state.view.record_observations = lambda envelope, phase: state.observations.append((envelope, phase))
 
 
-def _plan(state: TaskState):
+def _plan(state: TaskState, anchored=False):
     planning_started = __import__('time').monotonic()
+    reuse = 'REVIEW_REQUEST_STALE: the line reply needs the prior approved plan' if anchored else state.review_existing
     state.plan, state.plan_approval = planning.run_reviewed_plan(state.view, state.prompt, state.contract, state.context_packet,
         max_repairs=state.decision.get('max_plan_repairs', 2), on_handoff=lambda envelope, phase: _record_handoff(state, envelope, phase),
-        require_reuse=state.review_existing)
+        require_reuse=reuse)
     if not state.plan_approval.reused_from:
         state.clock.done('planning', __import__('time').monotonic() - planning_started)
     planning.assert_plan_approval(state.view, state.plan, state.plan_approval, state.contract, state.context_packet)
@@ -772,7 +765,7 @@ def _plan(state: TaskState):
     state.build_prompt = planning.build_brief(state.prompt, state.plan_approval)
 
 
-def _resume(state: TaskState):
+def _resume(state: TaskState, anchored=False):
     state.work_key = resume.task_key(state.task_id, planning.digest(state.contract))
     if state.cfg.execution.resume_failed_builds:
         state.plan_content = planning._content_digest(state.plan)
@@ -780,7 +773,7 @@ def _resume(state: TaskState):
         state.pristine = quality.workable_fingerprint(state.view)
         state.kept, state.info = resume.apply(state.run.repo_root, state.work_key, owner_digest=state.pristine,
                                   plan_content=state.plan_content, stage_root=state.view.repo_root,
-                                  archive=not state.advisory, excluded=exclusions(state.run),
+                                  archive=not (state.advisory or anchored), excluded=exclusions(state.run),
                                   allowed=lambda rel: permissions.permitted(rel, state.builder, state.cfg))
         if state.kept:
             resume.deliver_packet(state.view, state.kept, state.run.repo_root, state.work_key)
@@ -798,12 +791,12 @@ def _resume(state: TaskState):
         elif state.info:
             state.run.console.note(state.info)
             state.task.log(resume_skipped=state.info)
-        if not state.advisory:
+        if not (state.advisory or anchored):
             resume.write_plan(state.run.repo_root, state.work_key, state.plan, state.info if state.kept else None)
         state.view.salvage_failed_build = True
 
         # An advisory review leaves the saved candidate exactly as it was.
-        state.staged.resume_save = None if state.advisory else lambda reason: _resume_save(state, reason)
+        state.staged.resume_save = None if state.advisory or anchored else lambda reason: _resume_save(state, reason)
 
 
 def _scope(state: TaskState):
@@ -867,7 +860,7 @@ def _accept(state: TaskState):
 
 
 def _execute_task(prompt, contract, prepared, adw_id=None, task_id=None, mode="full", repo_lock=None,
-                  review_existing=False, advisory=False):
+                  review_existing=False, advisory=False, feedback=None):
     """A failed task discards all candidate source; trace stays controller-owned."""
     (cfg, decision, policy, accepted_intent, context_state, prepare_context, owner_evidence,
      builder_preflight, required_roles) = prepared
@@ -886,23 +879,22 @@ def _execute_task(prompt, contract, prepared, adw_id=None, task_id=None, mode="f
     run = session.ensure(cfg, adw_id, repo_lock=repo_lock, fresh=True)
     state = TaskState(run, cfg, decision, contract, prompt, task_id, review_existing,
                       advisory, policy, accepted_intent, owner_decisions)
-
-
-
     try:
-        _open_task(state, prepare_context, context_state)
+        _open_task(state, prepare_context, context_state, feedback)
         with state.run.phase(PhaseParams(name='guarded_task', kind='code', owner='controller',
                                    description='Keep the complete task staged until checks and scope review pass')) as state.task:
             with durable_stage(state.run, state.task.phase, state.builder) as state.staged:
                 _stage_inputs(state, owner_evidence)
-                _plan(state)
-                _resume(state)
+                anchored = bool(feedback and feedback[0].anchor)
+                _plan(state, anchored)
+                _resume(state, anchored)
                 _scope(state)
+                if feedback:
+                    review_feedback.deliver(state, feedback, source_paths(state.staged) if anchored else [])
+                if anchored:
+                    state.staged.resume_save = lambda reason: _resume_save(state, reason)
 
                 state.window_checkpoint = _checkpoint(state)
-
-
-
                 state.window_size = state.decision['max_repairs'] + 1
                 state.window_end = state.window_size
                 for attempt in range(state.window_size * (state.policy.recovery_rounds + 1)):
@@ -954,8 +946,11 @@ def _execute_task(prompt, contract, prepared, adw_id=None, task_id=None, mode="f
 
 def main(prompt=None, config='adws/adw_kh_config/kh.config.yaml', profile=None,
          scope_file=None, dry_run=False, save_profile=False, adw_id=None, task_id=None, mode="full", repo_lock=None,
-         use=None, review_existing=False, advisory=False, evidence=None, refresh_context=False):
+         use=None, review_existing=False, advisory=False, evidence=None, refresh_context=False, review_request=None):
     project.require_sequential(Path.cwd())
+    if review_request is not None and (not task_id or not adw_id or any(
+            (prompt, dry_run, save_profile, review_existing, advisory, evidence, refresh_context, repo_lock))):
+        raise ValueError('--review-request needs --task and a new --adw-id for a normal guarded run')
     planned_task = project.load_task(Path.cwd(), task_id) if task_id else None
     if planned_task:
         if scope_file:
@@ -996,6 +991,7 @@ def main(prompt=None, config='adws/adw_kh_config/kh.config.yaml', profile=None,
         if agent.coding_agent == 'delegate_codex' and agent.delegate_sandbox == 'read-only':
             raise ValueError(f'{role}: required evidence needs explicit workspace-write sandbox; source writes remain []')
     preview = {**decision, "execution": policy.model_dump(),
+               'review_setup_sha256': planning.digest({'decision': decision, 'mode': mode}),
                'builder_test_preflight': builder_preflight,
                'review_existing': bool(review_existing), 'advisory': bool(advisory),
                'refresh_context': bool(refresh_context and context_state['status'] == 'stale'),
@@ -1014,24 +1010,41 @@ def main(prompt=None, config='adws/adw_kh_config/kh.config.yaml', profile=None,
     if dry_run: return 0
     if preview['missing_checks']:
         raise RuntimeError('NOT_CONFIGURED: ' + ', '.join(preview['missing_checks']))
+    if review_request is not None:
+        with session.acquire_repo_lock(Path.cwd()) as lease:
+            if os.environ.get('KH_REVIEW_SETUP_SHA256') not in (None, preview['review_setup_sha256']):
+                raise ValueError('REVIEW_REQUEST_STALE: the saved run setup changed after preview')
+            feedback = review_feedback.load(Path.cwd(), cfg, review_request, task_id, adw_id)
+            if intent.load(Path.cwd(), prompt)['sha256'] != accepted_intent['sha256']:
+                raise ValueError('REVIEW_REQUEST_STALE: the accepted intent changed during startup')
+            if feedback[0].anchor and (context_state['status'] != 'ready' or not cfg.execution.resume_failed_builds
+                                       or not cfg.execution.reuse_approved_plan):
+                raise ValueError('REVIEW_REQUEST_STALE: a line reply needs ready context and reusable kept work')
+            return _execute_task(prompt, contract, prepared, adw_id, task_id, mode, lease, feedback=feedback)
     if save_profile: routing.save_preference(Path.cwd(), decision['profile'], cfg)
     return _execute_task(prompt, contract, prepared, adw_id, task_id, mode, repo_lock,
                          review_existing, advisory)
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description=__doc__)
+def guarded_parser(description):
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument('prompt', nargs='?')
     parser.add_argument('--task', dest='task_id', help='Execute an existing project task with recorded scope')
     parser.add_argument('--config', default=os.environ.get('KH_CONFIG', 'adws/adw_kh_config/kh.config.yaml'))
     parser.add_argument('--profile')
-    parser.add_argument('--mode', choices=('full', 'light'), default='full')
     parser.add_argument('--scope-file')
     parser.add_argument('--dry-run', action='store_true')
     parser.add_argument('--save-profile', action='store_true')
     parser.add_argument('--adw-id')
     parser.add_argument('--use', action='append', metavar='ROLE=RUNTIME:MODEL:EFFORT',
                         help='Model and effort for one role in this run only (repeatable)')
+    return parser
+
+
+if __name__ == '__main__':
+    parser = guarded_parser(__doc__)
+    parser.add_argument('--mode', choices=('full', 'light'), default='full')
+    parser.add_argument('--review-request', metavar='UUID', help='Use one saved local reply for a stopped tracked task')
     parser.add_argument('--review-existing', action='store_true',
                         help="Review this task's kept, checked candidate without a builder round; "
                              'promotion still needs a real approval')

@@ -26,4 +26,7 @@ export type {
   ProjectSnapshot,
   ProjectResponse,
   MethodologyMetrics,
+  TaskReviewResponse,
+  ReviewLineAnchor,
+  DeliveryPacket,
 } from '@shared/types'

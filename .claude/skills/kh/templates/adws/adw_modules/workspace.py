@@ -120,7 +120,7 @@ def exclusions(run):
               'project-status.json', 'PROJECT_STATUS.md', 'task-reports', 'task-receipts',
               'controller.lock', 'controller-control.lock', 'controller-state.json',
               'controller-request.json', 'intent-digests.json', 'intent-digests.lock', 'work',
-              'timing-history.json', 'timing-history.tmp', 'dispositions.json')]
+              'timing-history.json', 'timing-history.tmp', 'dispositions.json', 'review-requests')]
     paths.append(Path('.kh/model-switch'))  # owner steering is controller state, never source
     paths += [Path('.kh') / p for p in ('parallel', 'execution-decision.json',
                                       'execution-metadata.json')]

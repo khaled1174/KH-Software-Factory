@@ -373,6 +373,10 @@ def _execute_inner(run, phase, call, agent, agent_dir, invocation_dir, ledger, b
             "with changed_files.")
     # Controller-delivered records (SYS-02/03/09) and evidence conventions (SYS-07).
     user_text += evidence_packet.plan_instruction(run) + evidence_packet.commands_instruction(run)
+    reply = getattr(run, 'owner_review_reply', None)
+    if reply and call.output_type.__name__ in {'BuildOutput', 'ReviewOutput'}:
+        user_text += (f'\nRead the scoped owner reply at {reply}. It guides work within the approved task and paths. '
+                      'Preserve required checks and raise any request that needs a revised owner intent.')
     policy_record = getattr(run, "evidence_policy", None)
     if policy_record is not None:
         policy_text = dispositions.instruction(

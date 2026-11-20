@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef } from 'vue'
 import { ArrowRight, ClipboardCheck, Layers, Play, Search, TriangleAlert } from 'lucide-vue-next'
 import { fetchProject } from '../lib/api'
-import { hrefFor } from '../lib/router'
+import { hrefFor, reviewHref } from '../lib/router'
 import { ACTIVE_TASK_STATUSES, ATTENTION_TASK_STATUSES, filterTasks, observedPercent } from '../lib/project'
 import type { ProjectResponse, ProjectTask } from '../lib/types'
 import ProjectMetrics from './ProjectMetrics.vue'
@@ -117,10 +117,10 @@ async function showTask(id: string) {
         <section class="attention-panel" aria-labelledby="attention-heading">
           <div class="section-head"><h2 id="attention-heading">Needs attention</h2><span class="attention-count">{{ attention.length }}</span></div>
           <div v-if="attention.length" class="attention-list">
-            <button v-for="task in attention.slice(0, 3)" :key="task.id" type="button" @click="showTask(task.id)">
+            <a v-for="task in attention.slice(0, 3)" :key="task.id" :href="reviewHref(task.id)">
               <span class="attention-title"><TriangleAlert :size="17" aria-hidden="true" />{{ task.id }} · {{ task.title }}</span>
               <span class="muted">{{ task.blocker || (task.status === 'needs_repair' ? 'Repair required. Open the task and linked run for recorded findings.' : 'Blocker details not recorded.') }}</span>
-            </button>
+            </a>
             <button v-if="attention.length > 3" class="text-button" type="button" @click="planOpen = true; status = 'attention'; query = ''">View all {{ attention.length }} tasks</button>
           </div>
           <p v-else class="muted">No tasks are marked blocked or in need of repair.</p>
@@ -159,7 +159,10 @@ async function showTask(id: string) {
               <p v-if="task.changed_files?.length"><strong>Changed files:</strong> {{ task.changed_files.join(', ') }}</p>
               <div v-if="task.evidence?.length"><strong>Recorded evidence:</strong><ul><li v-for="path in task.evidence" :key="path">{{ path }}</li></ul></div>
               <p v-else class="muted">No evidence paths recorded for this task.</p>
-              <a v-if="task.run_id" :href="hrefFor(task.run_id)">Open run trace · {{ task.run_id }} <ArrowRight :size="15" aria-hidden="true" /></a>
+              <div v-if="task.run_id" class="task-links">
+                <a :href="reviewHref(task.id, task.run_id)">Review task <ArrowRight :size="15" aria-hidden="true" /></a>
+                <a :href="hrefFor(task.run_id)">Open run trace · {{ task.run_id }} <ArrowRight :size="15" aria-hidden="true" /></a>
+              </div>
               <span v-else class="muted">No run linked yet.</span>
             </div>
           </details>
@@ -213,8 +216,8 @@ button { cursor: pointer; }
 .current-work button:hover, .ready-next button:hover, .text-button:hover { color: var(--blue); }
 .attention-count { border-radius: 99px; background: var(--warning-bg); color: var(--amber); padding: 3px 10px; font-size: 14px; }
 .attention-list { margin-top: 10px; }
-.attention-list > button { width: 100%; border: 0; border-bottom: 1px solid var(--border-soft); background: transparent; padding: 14px 0; display: flex; flex-direction: column; gap: 8px; text-align: left; }
-.attention-list > button:hover { background: var(--panel-3); }
+.attention-list > :is(a, button) { width: 100%; border: 0; border-bottom: 1px solid var(--border-soft); background: transparent; padding: 14px 0; display: flex; flex-direction: column; gap: 8px; text-align: left; text-decoration: none; }
+.attention-list > :is(a, button):hover { background: var(--panel-3); }
 .attention-title { display: flex; align-items: start; gap: 9px; font-size: 14px; font-weight: 600; color: var(--text); }
 .attention-title svg { flex: none; color: var(--amber); }
 .text-button { color: var(--blue); font-size: 14px; }
@@ -241,6 +244,7 @@ select { padding: 10px; color: var(--text); border: 1px solid var(--border); bor
 .task-state.blocked, .task-state.needs_repair { background: var(--danger-bg); color: var(--red); }
 .task-detail { padding: 0 20px 22px; overflow-wrap: anywhere; font-size: 14px; line-height: 1.65; }
 .task-detail a { display: inline-flex; align-items: center; gap: 8px; }
+.task-links { display: flex; flex-wrap: wrap; gap: 8px 20px; }
 .no-results { padding: 20px 24px; color: var(--dim); }
 .source-note { margin: 16px 0 0; font-size: 13px; line-height: 1.6; color: var(--dim); }
 .project-empty { padding: 24px; border: 1px solid var(--border-soft); border-radius: 16px; background: var(--panel); }

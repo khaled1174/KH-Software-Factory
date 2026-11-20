@@ -39,6 +39,7 @@ GITIGNORE_ENTRIES = [
     ".kh/task-reports/",
     ".kh/task-receipts/",
     ".kh/work/",
+    ".kh/review-requests/",
     ".kh/parallel/",
     ".kh/execution-decision.json",
     ".kh/execution-metadata.json",

@@ -49,11 +49,11 @@ python3 install.py --project "/absolute/path/to/project"
 
 Configure your real quality commands — KH can only verify what you ask it to run — record each role's model with `/kh-setup-models`, then follow [START_HERE.md](START_HERE.md) for your first task. Upgrading an existing install? Read its backup, upgrade and restore instructions first; your project configuration and role prompts are preserved.
 
-## What this is not
+## Deployment and authority
 
 - Not a hosted service. It runs on your machine against your own CLI subscriptions. No credentials, model sessions or dependencies are bundled.
 - Not a sandbox. Acceptance is still bounded by your native CLI permissions.
 - Not a guarantee of correctness. It guarantees that the checks you configured actually ran and passed, and that an independent reviewer saw the diff.
-- Not an approval UI. The optional trace UI observes and reports tokens and cost; it cannot execute or approve anything. Cost figures are informational.
+- The optional loopback review page shows attempts and published evidence. With local actions enabled, it can submit a reply to the guarded controller. The controller owns acceptance.
 
 Version 1.0.0 — see [CHANGELOG.md](CHANGELOG.md). Built and used on my own projects, with Claude Code and Codex as the providers; it has not been through an external pilot yet. The release gate runs the full test suite, contract evaluations and installer smoke checks against the extracted release ZIP, and the Verify badge above is the live result. [Verification and known limits](docs/VERIFICATION.md) sets out what those results do and do not establish; [source attribution](docs/THIRD_PARTY.md) and the [integration register](docs/Skills_Integration_Register.md) identify sources, licenses and responsibilities. The project itself is MIT licensed — see [LICENSE](LICENSE).

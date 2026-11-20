@@ -302,6 +302,62 @@ export interface ProjectTask {
   changed_files?: string[];
   evidence?: string[];
   blocker?: string | null;
+  updated_at?: string | null;
+}
+
+export interface ReviewAttempt {
+  run_id: string;
+  status: string | null;
+  blocker: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+}
+
+export interface ReviewDiff {
+  artifact: string;
+  sha256: string;
+  text: string;
+  round: number;
+}
+
+export type { ReviewAnchor as ReviewLineAnchor } from "./review-actions";
+
+export interface TaskReviewResponse {
+  task: ProjectTask;
+  actions_available?: boolean;
+  task_definition_sha256: string | null;
+  attempts: ReviewAttempt[];
+  selected_attempt: ReviewAttempt | null;
+  run_mode: "full" | "light" | null;
+  history_available: boolean;
+  fetched_at: string;
+  phase: { phase_id: string; name: string; round: number } | null;
+  checks: { name: string; passed: boolean; returncode: number | null; output_tail: string }[];
+  review: {
+    approved: boolean;
+    summary: string;
+    blocking: string[];
+    findings: { requirement: string; met: boolean; evidence: string }[];
+  } | null;
+  build_summary: string | null;
+  diff: ReviewDiff | null;
+  diff_unavailable: string | null;
+  owner_hold: { categories: { category: string; why: string }[]; intent_path: string | null } | null;
+  decision_draft: {
+    artifact: string;
+    sha256: string;
+    findings: { text: string; category: string }[];
+    invocations: string[];
+    checked_candidate_recorded: boolean;
+  } | null;
+}
+
+export interface DeliveryPacket {
+  filename: string;
+  markdown: string;
+  accepted: boolean;
+  artifacts: { id: string; name: string }[];
+  max_attachments: number;
 }
 
 export interface ProjectSnapshot {

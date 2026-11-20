@@ -508,6 +508,8 @@ def run_reviewed_plan(run, request, contract, context_packet, *, max_repairs, on
     if reused is not None:
         return reused
     if require_reuse:
+        if isinstance(require_reuse, str):
+            raise PlanningBlocked(require_reuse)
         # A review-only continuation reviews the candidate built under an
         # approved plan; it never plans anew (SYS-10).
         raise PlanningBlocked('REVIEW_EXISTING_REQUIRES_APPROVED_PLAN: no earlier approval of this exact task, '

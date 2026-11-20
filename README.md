@@ -16,6 +16,12 @@
 
 Run a single task with `/kh-start` or execute a recorded plan sequentially with `/kh-project run-continuous`. A dependent task becomes ready when the controller accepts all of its prerequisites.
 
+## Working methodology
+
+![KH working methodology. The owner accepts the intent, a separate reviewer approves the plan, and the builder works in isolation. After checks and independent review, the controller sends repairable work back to the builder within limits, stops with evidence, or promotes and records the change.](docs/assets/working-methodology.png)
+
+The planner proposes the scope and steps. A separate reviewer approves the exact plan version. The controller runs the checks and applies the independent review result. Repairable findings return to the builder within the configured limits. A run stops with evidence if it needs an owner decision or exhausts its limits. [Detailed workflow](docs/ARCHITECTURE.md#workflow-diagram)
+
 ## Inspect a stop and respond
 
 ![Review a stopped task. Inspect the evidence, save a reply, confirm the run setup, and start a new attempt.](docs/assets/stopped-task-review.png)

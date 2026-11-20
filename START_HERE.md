@@ -147,6 +147,14 @@ an explicit accepted digest. Editing accepted text requires reacceptance; this
 detects drift rather than authenticating the human. Follow the installed
 [intent rules](.claude/skills/kh/references/intent.md).
 
+Use the installed template helper to preview a bug fix, interface feature, or
+maintenance task. It shows the generated intent, one-task project plan, and
+template version. The `--write` option creates the draft files for review.
+
+```bash
+uv run .claude/skills/kh/scripts/prepare_task.py --help
+```
+
 /kh-bootstrap --dry-run inspects context readiness; /kh-bootstrap prepares
 missing reviewed navigation. Guarded start does so under the same controller.
 Use /kh-start --refresh-context for stale single-task context, or
@@ -263,10 +271,28 @@ python3 install.py --project "/absolute/path/to/project" --with-visualizer
 The installer adds no frontend dependencies. The installed recipe needs just
 and Bun, installs with bun install --frozen-lockfile, builds dist and serves
 UI/API on loopback port 4600. Core-only upgrades preserve existing UI files.
-The white dashboard shows accepted project progress, blockers, traces, phase
-gates and evidence. It does not dispatch, retry, approve or choose models.
-Stale data is marked; incomplete historical metrics/cost stay unknown or partial.
-The execution board is retired. The existing bounded builder resume note remains.
+Open a task from **Needs attention** to see its attempts, recorded checks,
+published changes and review findings. Delivery packets export the selected
+attempt as Markdown. Missing evidence and incomplete cost data are marked.
+
+To enable local reply and retry controls, launch from the target project:
+
+```bash
+KH_REVIEW_ACTIONS=1 just obs
+```
+
+Use a current controller and visualizer installation. Write a task reply or
+select a line in the published diff. Save the reply, review the saved role
+setup, then request a new guarded attempt. Open the resulting attempt on the
+same page. A stale selection preserves the draft and requires updated evidence.
+The current intent and disposition workflows handle formal owner decisions.
+
+Try the deterministic review demo from the distribution after building the
+visualizer. Follow the URL and use the fixture reply printed by the script.
+
+```bash
+python3 -B scripts/demo_task_review.py
+```
 
 ## Develop and verify this distribution
 

@@ -1,4 +1,5 @@
 import type {
+  DeliveryPacket,
   Envelope,
   EventRow,
   EventsPage,
@@ -7,6 +8,7 @@ import type {
   SessionDetail,
   SessionSummary,
   ProjectResponse,
+  TaskReviewResponse,
 } from './types'
 
 async function getJson(url: string, signal?: AbortSignal): Promise<unknown> {
@@ -21,6 +23,18 @@ export function fetchSessions(): Promise<SessionSummary[]> {
 
 export function fetchProject(signal?: AbortSignal): Promise<ProjectResponse> {
   return getJson('/api/project', signal) as Promise<ProjectResponse>
+}
+
+export function fetchTaskReview(taskId: string, runId?: string | null, signal?: AbortSignal): Promise<TaskReviewResponse> {
+  const attempt = runId ? `?run_id=${encodeURIComponent(runId)}` : ''
+  return getJson(`/api/project/tasks/${encodeURIComponent(taskId)}/review${attempt}`, signal) as Promise<TaskReviewResponse>
+}
+
+export function fetchTaskDelivery(taskId: string, runId: string, artifacts: string[],
+                                  signal?: AbortSignal): Promise<DeliveryPacket> {
+  const query = new URLSearchParams({ run_id: runId })
+  for (const artifact of artifacts) query.append('artifact', artifact)
+  return getJson(`/api/project/tasks/${encodeURIComponent(taskId)}/delivery?${query}`, signal) as Promise<DeliveryPacket>
 }
 
 export async function fetchSession(adwId: string): Promise<SessionDetail> {

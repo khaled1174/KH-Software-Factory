@@ -9,17 +9,17 @@ from __future__ import annotations
 from contextlib import contextmanager, nullcontext
 from datetime import datetime, timezone
 from fractions import Fraction
+from hashlib import sha256
 import json
 import math
 import os
 from pathlib import Path
 import re
-import secrets
 import sqlite3
 import stat
 import warnings
 
-from .scope import ScopeContract, ScopeViolation, _atomic_json, _parent_fd, _read_json, _relative_pattern, plan_boundary
+from .scope import ScopeContract, ScopeViolation, _atomic_json, _parent_fd, _read_json, _relative_pattern, _write_bytes_at, plan_boundary
 
 SCHEMA_VERSION = 1
 ACTIVE = frozenset({'running', 'verifying', 'reviewing', 'needs_repair'})
@@ -488,26 +488,46 @@ def _revise_tasks(root, task_id, replacements, *, reason, dry_run, split):
         return {**_refresh_after_commit(root), 'revision': revision}
 
 
-def begin_task(root: Path, task_id: str, run_id: str, *, require_plan_review=False) -> dict:
-    """Controller starts a ready task while holding the repository lock."""
+def _check_start(conn, row, run_id):
     _id(run_id, 'Run ID')
+    if row['status'] not in {'pending', 'blocked'}:
+        raise ProjectError(f"Task {row['id']} cannot start from {row['status']}")
+    definition = json.loads(row['definition'])
+    unmet = [dep for dep in definition['dependencies'] if _row(conn, dep)['status'] != 'completed']
+    if unmet:
+        raise ProjectError(f"Task {row['id']} has incomplete dependencies: {unmet}")
+    if conn.execute('SELECT 1 FROM tasks WHERE status IN (?,?,?,?) LIMIT 1', tuple(sorted(ACTIVE))).fetchone():
+        raise ProjectError('Another project task is active; finish or recover it before starting a task')
+    if conn.execute('SELECT 1 FROM attempts WHERE run_id=?', (run_id,)).fetchone():
+        raise ProjectError('Run ID has already been used; start a new controller run')
+
+
+def check_review_start(root, request, run_id):
+    with _db(root) as conn:
+        row = _row(conn, request.task_id)
+        if (row['status'] != 'blocked' or row['run_id'] != request.stopped_run_id
+                or row['blocker'] != request.blocker
+                or sha256(row['definition'].encode()).hexdigest() != request.task_definition_sha256):
+            raise ProjectError('REVIEW_REQUEST_STALE: the current blocked task or definition changed')
+        if row['blocker'].startswith(('OWNER_REVIEW_REQUIRED:', 'OWNER_DECISION_REQUIRED:', 'ROLE_CLEANUP_PENDING:',
+                                       'Source was promoted; completion recording needs reconciliation:')):
+            raise ProjectError('This blocker requires the existing owner decision or reconciliation path')
+        _check_start(conn, row, run_id)
+
+
+def begin_task(root: Path, task_id: str, run_id: str, *, require_plan_review=False, review_feedback=None) -> dict:
+    """Controller starts a ready task while holding the repository lock."""
     with _db(root, write=True) as conn:
-        row = _row(conn, task_id)
-        if row['status'] not in {'pending', 'blocked'}:
-            raise ProjectError(f"Task {task_id} cannot start from {row['status']}")
-        definition = json.loads(row['definition'])
-        unmet = [dep for dep in definition['dependencies'] if _row(conn, dep)['status'] != 'completed']
-        if unmet:
-            raise ProjectError(f'Task {task_id} has incomplete dependencies: {unmet}')
-        if conn.execute('SELECT 1 FROM tasks WHERE status IN (?,?,?,?) LIMIT 1', tuple(sorted(ACTIVE))).fetchone():
-            raise ProjectError('Another project task is active; finish or recover it before starting a task')
-        if conn.execute('SELECT 1 FROM attempts WHERE run_id=?', (run_id,)).fetchone():
-            raise ProjectError('Run ID has already been used; start a new controller run')
+        _check_start(conn, _row(conn, task_id), run_id)
         conn.execute('INSERT INTO attempts VALUES(?,?)', (run_id, task_id))
         conn.execute("UPDATE tasks SET status='running',run_id=?,blocker=NULL,summary='',changed_files='[]',"
                      "evidence='[]',receipt='null',detail='null',updated_at=? WHERE id=?",
                      (run_id, _now(), task_id))
-        _event(conn, task_id, run_id, 'running', {'requires_plan_review': True} if require_plan_review else None)
+        detail = {'requires_plan_review': True} if require_plan_review else {}
+        if review_feedback:
+            request, digest = review_feedback
+            detail.update(review_request_id=request.request_id, review_request_sha256=digest)
+        _event(conn, task_id, run_id, 'running', detail or None)
     return _refresh_after_commit(root, task_id)
 
 
@@ -770,20 +790,7 @@ def recover_task(root: Path, task_id: str, reason: str) -> dict:
 def _atomic_text(path, text):
     with _parent_fd(path, create=True) as (parent, name):
         _regular_at(parent, name, missing=True)
-        temporary = f'.{name}.{secrets.token_hex(12)}.tmp'
-        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=parent)
-        try:
-            with os.fdopen(fd, 'w', encoding='utf-8') as stream:
-                stream.write(text)
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.replace(temporary, name, src_dir_fd=parent, dst_dir_fd=parent)
-            os.fsync(parent)
-        finally:
-            try:
-                os.unlink(temporary, dir_fd=parent)
-            except FileNotFoundError:
-                pass
+        _write_bytes_at(parent, name, text.encode())
 
 
 def _cell(text):

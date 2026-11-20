@@ -436,6 +436,20 @@ export class KhDb {
       .all(adwId);
   }
 
+  phaseEvidence(adwId: string, phaseId: string, outputType?: string): string[] {
+    const maxPayloadBytes = 200_000;
+    if (outputType) {
+      return this.db.query<{ payload_json: string }, [string, string, string, number]>(
+        "SELECT payload_json FROM envelopes WHERE adw_id=? AND phase_id=? AND output_type=? AND valid=1 " +
+        "AND length(CAST(payload_json AS BLOB))<=? ORDER BY rowid DESC LIMIT 1",
+      ).all(adwId, phaseId, outputType, maxPayloadBytes).map((row) => row.payload_json);
+    }
+    return this.db.query<{ payload_json: string }, [string, string, number]>(
+      "SELECT payload_json FROM events WHERE adw_id=? AND phase_id=? AND type='log' " +
+      "AND length(CAST(payload_json AS BLOB))<=? ORDER BY rowid DESC LIMIT 10",
+    ).all(adwId, phaseId, maxPayloadBytes).map((row) => row.payload_json);
+  }
+
   gates(adwId: string): GateResult[] {
     const checks = this.optionalColumn("gate_results", "checks_json");
     return this.db

@@ -173,9 +173,14 @@ usage is differenced rather than added repeatedly; subscription billing is not
 inferred from estimated query prices. Failed attempts retain their trace and
 partial usage. Cost is information, never a stopping threshold.
 
-The local trace UI reads existing events and project reports. It can archive a
-session's review flag but cannot dispatch or approve. Missing history remains
-unknown; a fetched snapshot is not proof that an agent is alive.
+The local review page joins ledger attempts, trace events, and published
+evidence by task and run. The optional local action launcher saves a reply,
+previews the saved role configuration, and submits one request to the guarded
+entry point. The controller checks the request under the repository lease.
+The launch binds to the confirmed role setup and uses the recorded execution
+mode when available. Line replies bind to the exact published diff and kept
+candidate. The ledger records the new attempt and the controller decides
+acceptance. Missing or unconfirmed history is displayed as unknown.
 See [observability](../.claude/skills/kh/references/observability.md).
 
 ## Offline intervention reporting

@@ -107,6 +107,28 @@ def _read_json(path: Path):
             return json.load(stream)
 
 
+def _write_bytes_at(parent, name, data, *, exclusive=False):
+    """Publish complete bytes through an already validated parent descriptor."""
+    temporary = f".{name}.{secrets.token_hex(12)}.tmp"
+    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                         0o600, dir_fd=parent)
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        if exclusive:
+            os.link(temporary, name, src_dir_fd=parent, dst_dir_fd=parent, follow_symlinks=False)
+        else:
+            os.replace(temporary, name, src_dir_fd=parent, dst_dir_fd=parent)
+        os.fsync(parent)
+    finally:
+        try:
+            os.unlink(temporary, dir_fd=parent)
+        except FileNotFoundError:
+            pass
+
+
 def _atomic_json(path: Path, value) -> None:
     with _parent_fd(path, create=True) as (parent, name):
         try:
@@ -115,22 +137,8 @@ def _atomic_json(path: Path, value) -> None:
             existing = None
         if existing is not None and not stat.S_ISREG(existing.st_mode):
             raise ScopeViolation(f"Refusing non-regular scope state: {path}")
-        temporary = f".{name}.{secrets.token_hex(12)}.tmp"
-        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
-                             0o600, dir_fd=parent)
-        try:
-            with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-                json.dump(value, stream, ensure_ascii=False, indent=2)
-                stream.write("\n")
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.replace(temporary, name, src_dir_fd=parent, dst_dir_fd=parent)
-            os.fsync(parent)
-        finally:
-            try:
-                os.unlink(temporary, dir_fd=parent)
-            except FileNotFoundError:
-                pass
+        data = json.dumps(value, ensure_ascii=False, indent=2) + "\n"
+        _write_bytes_at(parent, name, data.encode())
 
 
 def load_contract(path: Path | str, request: str | None = None) -> ScopeContract:

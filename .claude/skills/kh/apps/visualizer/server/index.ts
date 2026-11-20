@@ -1,7 +1,7 @@
 /**
  * KH visualizer server — JSON API over a target repo's kh.db, plus the
- * built UI when ./dist exists. Reads are read-only; the single write is
- * POST /api/sessions/:adw_id/archive, which sets one review flag on a row.
+ * built UI when ./dist exists. The trace database is read-only except for
+ * archive flags. An opt-in action launcher hands replies to the controller.
  *
  * There is no ingest endpoint and no websocket. The data path is
  * agents → sqlite → web ui, and the UI gets there by polling.
@@ -10,9 +10,13 @@
  *   bun run server/index.ts --db /path/to/repo/adws/adw_data/kh.db
  *   KH_DB=/path/to/kh.db PORT=4600 bun run server/index.ts
  */
-import { existsSync, lstatSync, readFileSync, statSync } from "node:fs";
-import { join, resolve, sep } from "node:path";
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { KhDb, resolveDbPath, resolveProjectRoot } from "./db.ts";
+import { DataPathError, isSafeSegment, safeFile } from "./data-file.ts";
+import { readTaskReview, ReviewDataError } from "./task-review.ts";
+import { reviewActions } from "./review-actions.ts";
+import { readTaskDelivery } from "./delivery-export.ts";
 import type { AgentPrompts, ApiError, HealthResponse, ProjectSnapshot } from "../shared/types.ts";
 
 const PORT = Number(process.env.PORT ?? 4600);
@@ -60,8 +64,6 @@ function untrustedHost(): Response {
   return json({ error: "untrusted Host header" } satisfies ApiError, 403);
 }
 
-class DataPathError extends Error {}
-
 /** Guard every handler so a malformed query can't take the server down mid-run. */
 function safely(
   handler: (req: Request) => Response | Promise<Response>,
@@ -76,20 +78,9 @@ function safely(
     } catch (error) {
       console.error(`[kh] ${req.method} ${new URL(req.url).pathname}:`, error);
       return json({ error: (error as Error).message } satisfies ApiError,
-        error instanceof DataPathError ? 400 : 500);
+        error instanceof DataPathError ? 400 : error instanceof ReviewDataError ? 422 : 500);
     }
   };
-}
-
-/**
- * adw_ids and agent names are path segments on disk, so anything that isn't a
- * plain identifier is rejected outright rather than sanitized into something
- * that might still escape the sessions directory.
- */
-const SAFE_SEGMENT = /^[A-Za-z0-9._-]+$/;
-
-function isSafeSegment(value: string): boolean {
-  return SAFE_SEGMENT.test(value) && value !== "." && value !== "..";
 }
 
 function param(req: Request, key: string): string {
@@ -103,26 +94,6 @@ function intQuery(req: Request, key: string, fallback: number): number {
   if (raw === null || raw.trim() === "") return fallback;
   const parsed = Number.parseInt(raw, 10);
   return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-/** Refuse symlinks at every data path component, including missing-file links. */
-function safeFile(root: string, ...segments: string[]): string | null {
-  let path = root;
-  for (const segment of ["", ...segments]) {
-    path = resolve(path, segment);
-    if (path !== root && !path.startsWith(root + sep)) throw new DataPathError("invalid data path");
-    let stat;
-    try { stat = lstatSync(path); }
-    catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
-      throw error;
-    }
-    if (stat.isSymbolicLink()) throw new DataPathError("symlink data paths are not served");
-  }
-  const stat = lstatSync(path);
-  if (!stat.isFile()) return null;
-  if (stat.size > 8 * 1024 * 1024) throw new DataPathError("data file exceeds 8 MiB limit");
-  return path;
 }
 
 function projectStatus(): Response {
@@ -172,11 +143,52 @@ async function serveStatic(req: Request): Promise<Response> {
   return notFound("not found");
 }
 
+function reviewExecutable(): string | null {
+  if (Bun.env.KH_REVIEW_ACTIONS !== "1" || !projectRoot) return null;
+  try {
+    const entry = safeFile(projectRoot, "adws", "adw_start.py");
+    if (entry && /parser\.add_argument\(['"]--review-request['"]/.test(readFileSync(entry, "utf8"))) {
+      return Bun.which("uv");
+    }
+  } catch (error) {
+    console.error("[kh] Review launcher is unavailable:", (error as Error).message);
+  }
+  return null;
+}
+
+const executable = reviewExecutable();
+const actions = reviewActions({
+  root: projectRoot,
+  executable,
+  lookup: (taskId, runId) => projectRoot ? readTaskReview(projectRoot, db, taskId, runId) : null,
+});
+
 const server = Bun.serve({
   hostname: "127.0.0.1",
   port: PORT,
   routes: {
     "/api/project": { GET: safely(() => projectStatus()) },
+    "/api/review/capability": { GET: safely(actions.capability) },
+    "/api/review/requests": { GET: safely(actions.read), POST: safely(actions.save) },
+    "/api/review/requests/preview": { POST: safely(actions.preview) },
+    "/api/review/requests/start": { POST: safely(actions.start) },
+    "/api/project/tasks/:task_id/review": {
+      GET: safely((req) => {
+        if (!projectRoot) return notFound("no project root is configured");
+        const taskId = param(req, "task_id");
+        const runId = new URL(req.url).searchParams.get("run_id");
+        const review = readTaskReview(projectRoot, db, taskId, runId);
+        return review ? json({ ...review, actions_available: Boolean(executable) }) : notFound("task or attempt is missing from this project");
+      }),
+    },
+    "/api/project/tasks/:task_id/delivery": {
+      GET: safely((req) => {
+        if (!projectRoot) return notFound("no project root is configured");
+        const query = new URL(req.url).searchParams;
+        const packet = readTaskDelivery(projectRoot, db, param(req, "task_id"), query.get("run_id"), query.getAll("artifact"));
+        return packet ? json(packet) : notFound("task or attempt is missing from this project");
+      }),
+    },
     "/api/health": safely(
       () =>
         json({
@@ -195,8 +207,7 @@ const server = Bun.serve({
       return detail ? json(detail) : notFound(`no session ${param(req, "adw_id")}`);
     }),
 
-    // The one write. Archiving is review triage — it belongs to the reader, not
-    // to the run — so it never touches anything a tracer wrote.
+    // Archiving belongs to the reader and is independent of the controller.
     "/api/sessions/:adw_id/archive": {
       POST: safely(async (req) => {
         const adwId = param(req, "adw_id");

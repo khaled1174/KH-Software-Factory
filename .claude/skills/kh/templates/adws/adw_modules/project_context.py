@@ -17,7 +17,6 @@ from pathlib import Path, PurePosixPath
 import re
 import shlex
 import stat
-import tempfile
 from typing import Literal
 from types import SimpleNamespace
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_serializer, model_validator
@@ -468,17 +467,9 @@ def validate_proposal(root, proposal, baseline):
 
 
 def _atomic(root, relative, text):
-    target = _path(root, relative)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    fd, name = tempfile.mkstemp(prefix='.context-', dir=target.parent)
-    try:
-        with os.fdopen(fd, 'w') as stream:
-            stream.write(text); stream.flush(); os.fsync(stream.fileno())
+    with scope._parent_fd(_path(root, relative), create=True) as (parent, name):
         _path(root, relative)
-        os.replace(name, target)
-    finally:
-        if os.path.exists(name):
-            os.unlink(name)
+        scope._write_bytes_at(parent, name, text.encode())
 
 
 def recover_publication(root):

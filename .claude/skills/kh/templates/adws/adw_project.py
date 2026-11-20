@@ -12,11 +12,10 @@ import json
 import os
 from pathlib import Path
 import secrets
-import stat
 import sys
 
 from adw_modules import git_helper, project, session
-from adw_modules.scope import _parent_fd, _read_json
+from adw_modules.scope import _read_json
 import fcntl
 
 
@@ -40,15 +39,9 @@ def _write_control(root, name, value):
 @contextmanager
 def _control_guard(root):
     """Serialize pause requests with the decision to dispatch the next task."""
-    with _parent_fd(_control_path(root, 'controller-control.lock'), create=True) as (parent, name):
-        descriptor = os.open(name, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW,
-                             0o600, dir_fd=parent)
-        with os.fdopen(descriptor, 'a+') as stream:
-            info = os.fstat(stream.fileno())
-            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
-                raise RuntimeError('Refusing non-regular controller control lock')
-            fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
-            yield
+    with session.open_lock(_control_path(root, 'controller-control.lock'), 'controller control') as stream:
+        fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+        yield
 
 
 def _validate_controller_state(value):

@@ -29,7 +29,9 @@ provider choices fail explicitly and require /kh-setup-models.
 
 The observer uses an owner-controlled local store. Sanitized promotion is
 explicit. Neither audit skill can install a scheduler, become a router or
-accept a task. Frontend trace views have no execution authority.
+accept a task. Opt-in visualizer actions submit a single-task request to the
+guarded entry point. The controller validates it under the repository lease
+and records the resulting attempt.
 
 ## New-skill adoption checklist
 

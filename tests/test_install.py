@@ -149,7 +149,7 @@ exec(code, {'__name__': '__main__', '__file__': str(path)})
             self.assertTrue((cookbooks / (name + '.md')).is_file(), name)
         self.assertTrue((self.target / '.claude/skills/kh/references/model-choice.md').is_file())
 
-    def test_actual_install_keeps_parallel_runtime_state_out_of_git(self):
+    def test_actual_install_keeps_local_runtime_state_out_of_git(self):
         installer.install(self.target, package=ROOT)
         subprocess.run(["git", "init", "-q", str(self.target)], check=True)
         paths = [
@@ -157,6 +157,7 @@ exec(code, {'__name__': '__main__', '__file__': str(path)})
             ".kh/parallel/run/lanes/T1/.kh/project.db",
             ".kh/execution-decision.json",
             ".kh/execution-metadata.json",
+            ".kh/review-requests/request.json",
         ]
         result = subprocess.run(
             ["git", "-c", "core.excludesFile=/dev/null", "check-ignore", "--stdin"],

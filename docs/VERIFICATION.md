@@ -9,7 +9,7 @@ these are fixture counts, not general speed or cost claims.
 
 ## Latest release gate
 
-The full source suite and the extracted-distribution suite each completed
+The 1.0.0 baseline source and extracted-distribution suites each completed
 1,094 cases: all passed, with zero skips and zero failures. Contract evaluations passed 21/21. The installer and its
 five installed project-command smoke checks passed from the extracted archive.
 The trace UI passed its build, typecheck and lint checks.
@@ -20,6 +20,20 @@ inside a clean extraction. Full output is retained beside the archive.
 The [verification workflow](https://github.com/khaled1174/KH-Software-Factory/actions/workflows/verify.yml)
 uploads the call-count baseline and full archive-verification logs. Release
 publication requires that workflow to pass on the released source commit.
+
+## Interactive task review
+
+The deterministic browser demo starts from a failed check. Chromium showed the
+recorded failure and the missing diff for that attempt. The saved correction
+survived a browser reload. The next attempt read the reply, passed the real
+fixture check, and received independent approval. The browser opened that
+attempt and downloaded its Markdown delivery packet.
+
+The guarded feedback tests cover stale attempts, changed source lines, busy
+repositories, and a saved role setup that changes after preview. The Bun HTTP
+tests cover review history, duplicate launch, interrupted reservation, delivery
+receipt integrity, and missing or changed artifacts. These tests use temporary
+projects and deterministic role responses.
 
 ## Offline intervention reporting
 

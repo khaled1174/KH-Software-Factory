@@ -19,6 +19,7 @@ from pathlib import Path
 
 from .data_types import KHConfig
 from .runner import Run
+from .scope import _parent_fd
 from .tracer import Tracer
 from .utils import engineer_name, new_id
 
@@ -63,25 +64,24 @@ class RepoLease:
         return RepoLease(self.stream, self.root, owned=False)
 
 
+def open_lock(path, purpose):
+    with _parent_fd(path, create=True) as (parent, name):
+        descriptor = os.open(name, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW,
+                             0o600, dir_fd=parent)
+    info = os.fstat(descriptor)
+    if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+        os.close(descriptor)
+        raise RuntimeError(f'Refusing non-regular {purpose} lock')
+    return os.fdopen(descriptor, 'a+')
+
+
 def acquire_repo_lock(root: Path, *, wait_seconds=0):
     """One writer; bounded, cancellable waiting, never a background scheduler."""
     import fcntl
     if type(wait_seconds) is not int or not 0 <= wait_seconds <= 60:
         raise ValueError('wait_seconds must be an integer in 0..60')
     root = Path(root).resolve()
-    control = root / '.kh'
-    control.mkdir(mode=0o700, exist_ok=True)
-    parent = os.open(control, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-    try:
-        descriptor = os.open('controller.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW,
-                             0o600, dir_fd=parent)
-    finally:
-        os.close(parent)
-    info = os.fstat(descriptor)
-    if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
-        os.close(descriptor)
-        raise RuntimeError('Refusing non-regular repository lock')
-    stream = os.fdopen(descriptor, 'a+')
+    stream = open_lock(root / '.kh/controller.lock', 'repository')
     deadline = time.monotonic() + wait_seconds
     try:
         while True:

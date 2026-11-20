@@ -96,3 +96,16 @@ def unified_diff(baseline, current, paths: list[str]) -> str:
         block.extend(difflib.unified_diff(old, new, header_a, header_b, n=3))
         chunks.append("".join(block))
     return "".join(chunks) if chunks else "(no source changes)\n"
+
+
+def line_digest(baseline, current, anchor):
+    """Hash the visible content of one old or new side of a text hunk."""
+    before, after = (_text(snapshot.entries.get(anchor.path)) for snapshot in (baseline, current))
+    if before is None or after is None:
+        return None
+    line = anchor.line - 1
+    offset, rows = (1, before) if anchor.side == 'old' else (3, after)
+    for group in difflib.SequenceMatcher(None, before, after).get_grouped_opcodes(3):
+        if group[0][offset] <= line < group[-1][offset + 1]:
+            return hashlib.sha256(rows[line].splitlines()[0].encode()).hexdigest()
+    return None

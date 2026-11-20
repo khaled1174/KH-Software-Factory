@@ -12,9 +12,9 @@
 
 - **Scope.** The builder works in a staged copy with an approved file scope. KH measures the resulting changes before allowing promotion.
 - **Checks.** KH runs the project's configured commands on the candidate and records their results.
-- **Review.** An independent reviewer examines the controller-measured diff and the original requirements. The controller writes the acceptance receipt after the required checks, review, and promotion succeed.
+- **Review.** An independent reviewer examines the controller-measured diff and the original requirements. For tracked tickets, the controller writes the acceptance receipt after the required checks, review, and promotion succeed.
 
-Run a single task with `/kh-start` or execute a recorded plan sequentially with `/kh-project run-continuous`. Each dependency unlocks when the controller accepts the preceding task.
+Run a single task with `/kh-start` or execute a recorded plan sequentially with `/kh-project run-continuous`. A dependent task becomes ready when the controller accepts all of its prerequisites.
 
 ## Inspect a stop and respond
 

@@ -22,8 +22,11 @@ interface Preview {
 }
 
 const token = ref('')
+const keyInput = ref('')
+const keyStorage = 'kh-review-action-key'
 const projectKey = ref('')
 const capabilityLoaded = ref(false)
+const actionsEnabled = ref(false)
 const note = ref('')
 const attachLine = ref(true)
 const progress = ref<ReviewRequestState | null>(null)
@@ -32,6 +35,7 @@ const confirmed = ref(false)
 const busy = ref(false)
 const error = ref('')
 const pendingId = ref<string | null>(null)
+const lifecycle = new AbortController()
 let timer: ReturnType<typeof setInterval> | undefined
 
 const taskId = computed(() => props.review.task.id)
@@ -43,7 +47,8 @@ const latest = computed(() => props.review.task.status === 'blocked' && Boolean(
 const ownerDecision = computed(() => latest.value && requiresManualResolution(blocker.value))
 const retry = computed(() => environmentBlocked(blocker.value))
 const canReply = computed(() => Boolean(token.value && latest.value && props.review.task_definition_sha256 && !ownerDecision.value))
-const readOnly = computed(() => capabilityLoaded.value && !token.value && latest.value && !ownerDecision.value)
+const readOnly = computed(() => capabilityLoaded.value && !actionsEnabled.value && latest.value && !ownerDecision.value)
+const locked = computed(() => actionsEnabled.value && !token.value && latest.value && !ownerDecision.value)
 const currentDraft = computed(() => canReply.value && progress.value?.request.stopped_run_id === selectedRun.value)
 const anchor = computed(() => attachLine.value ? props.line : null)
 const canSave = computed(() => canReply.value && !props.stale && !busy.value && (retry.value || Boolean(note.value.trim())))
@@ -79,6 +84,7 @@ async function request<T>(path = '', data?: object): Promise<T> {
   const response = await fetch(`/api/review/requests${path}`, {
     method: data ? 'POST' : 'GET', headers,
     body: data ? JSON.stringify(data) : undefined,
+    signal: data ? undefined : lifecycle.signal,
   })
   const body = await response.json() as T & { error?: string }
   if (!response.ok) throw new Error(body.error ?? `Review request failed (${response.status}).`)
@@ -90,7 +96,9 @@ async function run(action: () => Promise<void>) {
   busy.value = true
   error.value = ''
   try { await action() }
-  catch (failure) { error.value = failure instanceof Error ? failure.message : String(failure) }
+  catch (failure) {
+    if (!lifecycle.signal.aborted) error.value = failure instanceof Error ? failure.message : String(failure)
+  }
   finally { busy.value = false }
 }
 
@@ -135,12 +143,12 @@ function start() {
   const digest = preview.value?.setup_sha256
   if (!draft || !digest || !confirmed.value || props.stale) return
   void run(async () => {
+    preview.value = null
+    confirmed.value = false
     const result = await request<ReviewRequestState>('/start', {
       request_id: draft.request_id, confirm_saved_setup: true, setup_sha256: digest,
     })
     progress.value = result
-    preview.value = null
-    confirmed.value = false
     note.value = ''
   })
 }
@@ -149,36 +157,67 @@ function attemptLink(runId: string) {
   return reviewHref(taskId.value, runId)
 }
 
-watch(() => props.line, () => { attachLine.value = true })
-onMounted(async () => {
+async function checkAccess(key: string) {
+  const response = await fetch('/api/review/capability', {
+    cache: 'no-store',
+    headers: { 'x-kh-review-capability': key },
+    signal: lifecycle.signal,
+  })
+  if (!response.ok) return false
+  const capability = await response.json() as { enabled: boolean; unlocked?: boolean; project_key?: string }
+  capabilityLoaded.value = true
+  actionsEnabled.value = capability.enabled
+  projectKey.value = capability.project_key ?? ''
+  token.value = capability.unlocked ? key : ''
   try {
-    const response = await fetch('/api/review/capability', { cache: 'no-store' })
-    if (!response.ok) return
-    const capability = await response.json() as { enabled: boolean; token?: string; project_key?: string }
-    token.value = capability.token ?? ''
-    projectKey.value = capability.project_key ?? ''
-    capabilityLoaded.value = true
-    if (!token.value) return
-    try { pendingId.value = localStorage.getItem(storageKey.value) }
-    catch { /* Storage can be unavailable in the browser. */ }
-    if (pendingId.value) await run(() => refresh(pendingId.value!))
-    timer = setInterval(() => {
-      const id = pendingId.value
-      if (id && !busy.value && progress.value && ['starting', 'running', 'unknown'].includes(progress.value.state)) {
-        void run(() => refresh(id))
-      }
-    }, 1500)
-  } catch { /* The review page still works when the action service is unavailable. */ }
+    if (token.value) sessionStorage.setItem(keyStorage, key)
+    else sessionStorage.removeItem(keyStorage)
+  } catch { /* Access remains available for this page. */ }
+  if (!token.value) return false
+  try { pendingId.value = localStorage.getItem(storageKey.value) }
+  catch { /* Storage can be unavailable in the browser. */ }
+  if (pendingId.value) await refresh(pendingId.value)
+  return true
+}
+
+function unlock() {
+  void run(async () => {
+    if (!await checkAccess(keyInput.value.trim())) throw new Error('Enter the local review key from the terminal.')
+    keyInput.value = ''
+  })
+}
+
+watch(() => props.line, () => { attachLine.value = true })
+onMounted(() => {
+  timer = setInterval(() => {
+    const id = pendingId.value
+    if (id && !busy.value && progress.value && ['starting', 'running', 'unknown'].includes(progress.value.state)) {
+      void run(() => refresh(id))
+    }
+  }, 1500)
+  let key = ''
+  try { key = sessionStorage.getItem(keyStorage) ?? '' }
+  catch { /* The owner can unlock the page directly. */ }
+  void run(async () => { await checkAccess(key) })
 })
-onUnmounted(() => clearInterval(timer))
+onUnmounted(() => {
+  lifecycle.abort()
+  clearInterval(timer)
+})
 </script>
 
 <template>
-  <section v-if="readOnly || canReply || progress" class="review-actions" aria-labelledby="review-actions-title">
+  <section v-if="readOnly || locked || canReply || progress" class="review-actions" aria-labelledby="review-actions-title">
     <h2 id="review-actions-title">Next action</h2>
     <p v-if="readOnly">To send a reply, launch the current visualizer with <code>KH_REVIEW_ACTIONS=1 just obs</code>.</p>
 
-    <div v-if="progress" class="request-state">
+    <form v-if="locked" @submit.prevent="unlock">
+      <label for="review-key">Local review key</label>
+      <input id="review-key" v-model="keyInput" type="password" autocomplete="off" maxlength="64">
+      <button type="submit" :disabled="busy || !keyInput.trim()">Unlock review actions</button>
+    </form>
+
+    <div v-else-if="progress" class="request-state">
       <p role="status"><strong>{{ stateLabels[progress.state] }}</strong></p>
       <p v-if="progress.request.text" class="reply-text">{{ progress.request.text }}</p>
       <a :href="attemptLink(progress.request.stopped_run_id)">Original attempt</a>

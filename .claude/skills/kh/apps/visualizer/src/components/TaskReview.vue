@@ -35,6 +35,7 @@ let selectionVersion = 0
 watch(() => [review.value?.selected_attempt?.run_id, review.value?.diff?.sha256].join('/'), () => {
   files.value = diffText.value === undefined ? [] : parseReviewDiff(diffText.value)
   fileIndex.value = 0
+  page.value = 0
   anchor.value = null
   selectionVersion++
 })

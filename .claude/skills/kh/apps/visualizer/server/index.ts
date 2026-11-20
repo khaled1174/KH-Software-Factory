@@ -12,6 +12,7 @@
  */
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { randomBytes } from "node:crypto";
 import { KhDb, resolveDbPath, resolveProjectRoot } from "./db.ts";
 import { DataPathError, isSafeSegment, safeFile } from "./data-file.ts";
 import { readTaskReview, ReviewDataError } from "./task-review.ts";
@@ -157,9 +158,13 @@ function reviewExecutable(): string | null {
 }
 
 const executable = reviewExecutable();
+const configuredKey = Bun.env.KH_REVIEW_ACTION_KEY;
+const terminalKey = executable && !configuredKey && process.stdout.isTTY
+  ? randomBytes(32).toString("hex") : "";
 const actions = reviewActions({
   root: projectRoot,
   executable,
+  key: configuredKey || terminalKey,
   lookup: (taskId, runId) => projectRoot ? readTaskReview(projectRoot, db, taskId, runId) : null,
 });
 
@@ -178,7 +183,7 @@ const server = Bun.serve({
         const taskId = param(req, "task_id");
         const runId = new URL(req.url).searchParams.get("run_id");
         const review = readTaskReview(projectRoot, db, taskId, runId);
-        return review ? json({ ...review, actions_available: Boolean(executable) }) : notFound("task or attempt is missing from this project");
+        return review ? json({ ...review, actions_available: actions.enabled }) : notFound("task or attempt is missing from this project");
       }),
     },
     "/api/project/tasks/:task_id/delivery": {
@@ -293,6 +298,10 @@ const server = Bun.serve({
 
 boundPort = server.port ?? PORT;
 console.log(`[kh] visualizer api  http://localhost:${server.port}`);
+if (terminalKey) console.log(`[kh] Local review key  ${terminalKey}`);
+if (executable && !actions.enabled) {
+  console.error("[kh] Review actions require a terminal or a valid private KH_REVIEW_ACTION_KEY.");
+}
 console.log(`[kh] db              ${dbPath}  [journal_mode=${db?.journalMode ?? "waiting for first run"}]`);
 console.log(
   existsSync(DIST_DIR)

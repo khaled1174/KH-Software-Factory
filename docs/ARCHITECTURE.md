@@ -176,7 +176,8 @@ partial usage. Cost is information, never a stopping threshold.
 The local review page joins ledger attempts, trace events, and published
 evidence by task and run. The optional local action launcher saves a reply,
 previews the saved role configuration, and submits one request to the guarded
-entry point. The controller checks the request under the repository lease.
+entry point. The owner unlocks the browser tab with a private launch key.
+The controller checks the request under the repository lease.
 The launch binds to the confirmed role setup and uses the recorded execution
 mode when available. Line replies bind to the exact published diff and kept
 candidate. The ledger records the new attempt and the controller decides

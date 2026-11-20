@@ -25,6 +25,7 @@ def main():
         fixture.failed_checks()
         with fixture.server(port=args.port) as url:
             print(f'Open {url}/#/review/T1/attempts', flush=True)
+            print(f'Local review key: {fixture.review_key}', flush=True)
             print(f'Fixture reply: {REPLY}', flush=True)
             print('Press Ctrl-C to remove the temporary project.', flush=True)
             Event().wait()

@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
+import { createHash, randomUUID, timingSafeEqual } from 'node:crypto'
 import { closeSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { requiresManualResolution } from '../shared/review-actions'
@@ -20,6 +20,7 @@ interface Target {
 interface Options {
   root: string | null
   executable: string | null
+  key: string
   lookup: (taskId: string, runId?: string) => Target | null
 }
 
@@ -195,17 +196,23 @@ async function processOutput(stream: ReadableStream<Uint8Array>, limit: number, 
   }
 }
 
-export function reviewActions({ root, executable, lookup }: Options) {
-  const token = root && executable ? randomBytes(32).toString('hex') : ''
+export function reviewActions({ root, executable, key, lookup }: Options) {
+  const token = root && executable && SHA.test(key) ? key : ''
   const projectKey = root ? createHash('sha256').update(root).digest('hex') : ''
   const active = new Set<string>()
   const previewed = new Map<string, Setup>()
+  const childEnvironment = { ...process.env }
+  delete childEnvironment.KH_REVIEW_ACTION_KEY
+
+  function hasKey(req: Request): boolean {
+    const provided = req.headers.get('x-kh-review-capability') ?? ''
+    return Boolean(token && SHA.test(provided) && timingSafeEqual(Buffer.from(provided), Buffer.from(token)))
+  }
 
   function authorized(req: Request, mutating: boolean) {
     if (!token) throw new ActionError(403, 'Review actions are disabled.')
-    const provided = req.headers.get('x-kh-review-capability') ?? ''
-    if (!SHA.test(provided) || !timingSafeEqual(Buffer.from(provided), Buffer.from(token))) {
-      throw new ActionError(403, 'Review capability is unavailable. Refresh the page.')
+    if (!hasKey(req)) {
+      throw new ActionError(403, 'Unlock review actions with the local launch key.')
     }
     if (mutating && req.headers.get('origin') !== `http://${req.headers.get('host')}`) {
       throw new ActionError(403, 'Review actions require the local visualizer origin.')
@@ -272,7 +279,7 @@ export function reviewActions({ root, executable, lookup }: Options) {
       const child = Bun.spawn([
         executable!, 'run', 'adws/adw_start.py', '--task', request.task_id,
         '--mode', setup.mode, '--adw-id', runId, '--review-request', id,
-      ], { cwd: root!, env: { ...process.env, KH_REVIEW_SETUP_SHA256: setup.digest }, stdout: 'ignore', stderr: 'pipe' })
+      ], { cwd: root!, env: { ...childEnvironment, KH_REVIEW_SETUP_SHA256: setup.digest }, stdout: 'ignore', stderr: 'pipe' })
       const [exitCode, stderr] = await Promise.all([child.exited, processOutput(child.stderr, 8000, true)])
       const lastError = stderr.split(/\r?\n/).findLast((line) => line.startsWith('kh-start: '))
       outcome = { exit_code: exitCode, reason: lastError?.slice(10, 2010) }
@@ -299,7 +306,10 @@ export function reviewActions({ root, executable, lookup }: Options) {
   }
 
   return {
-    capability: () => json(token ? { enabled: true, token, project_key: projectKey } : { enabled: false }),
+    enabled: Boolean(token),
+    capability: (req: Request) => json(token
+      ? { enabled: true, unlocked: hasKey(req), project_key: projectKey }
+      : { enabled: false }),
     save: wrap(async (req) => {
       const request = parseDraft(await body(req))
       const path = directory(true)
@@ -335,7 +345,7 @@ export function reviewActions({ root, executable, lookup }: Options) {
       const mode = requireCurrent(request)
       const process = Bun.spawn([
         executable!, 'run', 'adws/adw_start.py', '--task', request.task_id, '--mode', mode, '--dry-run',
-      ], { cwd: root!, stdout: 'pipe', stderr: 'ignore', timeout: 15_000 })
+      ], { cwd: root!, env: childEnvironment, stdout: 'pipe', stderr: 'ignore', timeout: 15_000 })
       const [exitCode, output] = await Promise.all([process.exited, processOutput(process.stdout, 256 * 1024)])
       if (exitCode !== 0) return denied('The controller preview is unavailable. Check the project setup.')
       const preview = object(JSON.parse(output))
@@ -347,7 +357,7 @@ export function reviewActions({ root, executable, lookup }: Options) {
         return denied('The controller did not provide a supported setup preview.')
       }
       const now = Date.now()
-      for (const [key, setup] of previewed) if (setup.expires <= now) previewed.delete(key)
+      for (const [requestId, setup] of previewed) if (setup.expires <= now) previewed.delete(requestId)
       previewed.set(id, { expires: now + 5 * 60_000, mode, digest: preview.review_setup_sha256 })
       return json({ mode, profile: preview.profile, roles: preview.roles, setup_sha256: preview.review_setup_sha256 })
     }, true),

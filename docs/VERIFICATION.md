@@ -32,8 +32,10 @@ attempt and downloaded its Markdown delivery packet.
 The guarded feedback tests cover stale attempts, changed source lines, busy
 repositories, and a saved role setup that changes after preview. The Bun HTTP
 tests cover review history, duplicate launch, interrupted reservation, delivery
-receipt integrity, and missing or changed artifacts. These tests use temporary
-projects and deterministic role responses.
+receipt integrity, and missing or changed artifacts. They check that review
+actions require the local launch key and that the launcher excludes it from
+controller child environments. These tests use temporary projects and
+deterministic role responses.
 
 ## Offline intervention reporting
 

@@ -281,14 +281,17 @@ To enable local reply and retry controls, launch from the target project:
 KH_REVIEW_ACTIONS=1 just obs
 ```
 
-Use a current controller and visualizer installation. Write a task reply or
-select a line in the published diff. Save the reply, review the saved role
+Use a current controller and visualizer installation. Enter the local review
+key printed in the terminal to unlock actions for the browser tab. A background
+launcher can supply a private 64-character lowercase hexadecimal key through
+`KH_REVIEW_ACTION_KEY`. Write a task reply or select a line in the published
+diff. Save the reply, review the saved role
 setup, then request a new guarded attempt. Open the resulting attempt on the
 same page. A stale selection preserves the draft and requires updated evidence.
 The current intent and disposition workflows handle formal owner decisions.
 
 Try the deterministic review demo from the distribution after building the
-visualizer. Follow the URL and use the fixture reply printed by the script.
+visualizer. Use the URL, review key, and fixture reply printed by the script.
 
 ```bash
 python3 -B scripts/demo_task_review.py

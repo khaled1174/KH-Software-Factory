@@ -4,6 +4,7 @@ from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
+from secrets import token_hex
 import shutil
 import socket
 import subprocess
@@ -32,6 +33,7 @@ class ReviewActionFixture:
 
     def prepare(self):
         self.init_plan()
+        self.review_key = token_hex(32)
         self.entry = startup.ADWS / 'adw_start.py'
         shutil.copyfile(self.entry, self.root / 'adws/adw_start.py')
         self.launches = self.base / 'browser-launches.jsonl'
@@ -49,6 +51,7 @@ class ReviewActionFixture:
             'import json, os, sys\n'
             'from pathlib import Path\n'
             "assert sys.argv[1:3] == ['run', 'adws/adw_start.py'], sys.argv\n"
+            "assert 'KH_REVIEW_ACTION_KEY' not in os.environ\n"
             f'with Path({str(self.launches)!r}).open("a") as stream:\n'
             '    stream.write(json.dumps(sys.argv[3:]) + "\\n")\n'
             f'os.execv({sys.executable!r}, [{sys.executable!r}, "-B", {str(self.entry)!r}, *sys.argv[3:]])\n'
@@ -73,7 +76,8 @@ class ReviewActionFixture:
         base = f'http://127.0.0.1:{port}'
         env = {**self.env, 'KH_PROJECT_ROOT': str(self.root), 'PORT': str(port),
                'PATH': f"{self.base}{os.pathsep}{self.env['PATH']}",
-               'KH_REVIEW_ACTIONS': '1' if enabled else '0', 'KH_FIXTURE_MODE': 'browser-feedback'}
+               'KH_REVIEW_ACTIONS': '1' if enabled else '0', 'KH_REVIEW_ACTION_KEY': self.review_key,
+               'KH_FIXTURE_MODE': 'browser-feedback'}
         with tempfile.TemporaryFile(mode='w+') as logs:
             child = subprocess.Popen(
                 [BUN, 'run', str(APP / 'server/index.ts'), '--db', str(self.root / 'adws/adw_data/kh.db')],
@@ -129,7 +133,7 @@ class ReviewActionFixture:
 
 @unittest.skipUnless(BUN, 'Bun is unavailable')
 class VisualizerReviewActionsTests(ReviewActionFixture, unittest.TestCase):
-    def test_disabled_mode_and_wrong_origin_save_nothing(self):
+    def test_disabled_mode_missing_key_and_wrong_origin_save_nothing(self):
         self.prepare()
         self.seed_stop()
         with self.server(enabled=False) as base:
@@ -138,7 +142,13 @@ class VisualizerReviewActionsTests(ReviewActionFixture, unittest.TestCase):
         with self.server() as base:
             _, capability = self.http(base, '/api/review/capability')
             request = self.draft(base)
-            self.assertEqual(self.http(base, '/api/review/requests', data=request, token=capability['token'],
+            self.assertTrue(capability['enabled'])
+            self.assertFalse(capability['unlocked'])
+            self.assertNotIn(self.review_key, json.dumps(capability))
+            self.assertEqual(self.http(base, '/api/review/requests', data=request)[0], 403)
+            self.assertEqual(self.http(base, '/api/review/requests', data=request, token=token_hex(32))[0], 403)
+            self.assertTrue(self.http(base, '/api/review/capability', token=self.review_key)[1]['unlocked'])
+            self.assertEqual(self.http(base, '/api/review/requests', data=request, token=self.review_key,
                                        origin='http://unrelated.invalid')[0], 403)
         self.assertFalse((self.root / '.kh/review-requests').exists())
         self.assertEqual(self.recorded_launches(), [])
@@ -147,7 +157,7 @@ class VisualizerReviewActionsTests(ReviewActionFixture, unittest.TestCase):
         self.prepare()
         self.seed_stop()
         with self.server() as base:
-            token = self.http(base, '/api/review/capability')[1]['token']
+            token = self.review_key
             request = self.draft(base)
             payload = {'request_id': request['request_id'], 'confirm_saved_setup': True, 'setup_sha256': '0' * 64}
             self.assertEqual(self.http(base, '/api/review/requests', data=request, token=token)[0], 201)
@@ -169,13 +179,13 @@ class VisualizerReviewActionsTests(ReviewActionFixture, unittest.TestCase):
         self.prepare()
         self.seed_stop()
         with self.server() as base:
-            token = self.http(base, '/api/review/capability')[1]['token']
+            token = self.review_key
             request = self.draft(base)
             self.assertEqual(self.http(base, '/api/review/requests', data=request, token=token)[0], 201)
         request_id = request['request_id']
         (self.root / '.kh/review-requests' / f'{request_id}.start.json.claim').touch()
         with self.server() as base:
-            token = self.http(base, '/api/review/capability')[1]['token']
+            token = self.review_key
             state = self.http(base, '/api/review/requests/start', token=token,
                               data={'request_id': request_id, 'confirm_saved_setup': True, 'setup_sha256': '0' * 64})[1]
             self.assertEqual(state['state'], 'unknown')
@@ -186,7 +196,7 @@ class VisualizerReviewActionsTests(ReviewActionFixture, unittest.TestCase):
         self.prepare()
         self.failed_checks('light')
         with self.server() as base:
-            token = self.http(base, '/api/review/capability')[1]['token']
+            token = self.review_key
             request = self.draft(base)
             request_id = request['request_id']
             stopped = self.http(base, '/api/project/tasks/T1/review')[1]
@@ -223,7 +233,7 @@ class VisualizerReviewActionsTests(ReviewActionFixture, unittest.TestCase):
         self.prepare()
         self.seed_stop()
         with self.server() as base:
-            token = self.http(base, '/api/review/capability')[1]['token']
+            token = self.review_key
             request = self.draft(base)
             request_id = request['request_id']
             self.assertEqual(self.http(base, '/api/review/requests', data=request, token=token)[0], 201)

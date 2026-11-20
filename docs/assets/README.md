@@ -5,8 +5,9 @@
 - `roles-and-controller.svg`: source-authored diagram of role ownership and controller authority.
 - `guarded-task-flow.png` shows the guarded task lifecycle.
 - `stopped-task-review.png` shows reviewing a stopped task and starting its next attempt.
+- `working-methodology.png` shows role handoffs and the outcomes of verification.
 
-The two README diagrams were generated with the built-in ChatGPT ImageGen tool.
+The three README diagrams were generated with the built-in ChatGPT ImageGen tool.
 Their labels are repeated in the README alternative text.
 
 The SVG diagrams have embedded titles and descriptions, a fixed light background
@@ -32,4 +33,14 @@ Title text exactly: "From ticket to acceptance". Below, five equally weighted wo
 ```text
 Use case: infographic-diagram. Asset type: finished diagram for the README of a real developer tool on GitHub. Editorial technical illustration, bright off-white #f7fafc canvas, deep ink navy typography and highly legible large modern sans-serif labels, restrained azure-blue outlines and teal accent, slight rounded corners. Crisp product documentation rather than a dashboard, flat 2D, light technical grid so faint it does not compete with type. It must be readable when shown at 750 px wide and has generous 6% safe margins. Use a panoramic landscape composition approximately 2.5:1, compact vertical whitespace. Use a single heading with a tidy row of equal-width nodes centered beneath it, linked by straight, continuous left-to-right arrows in only that order. No extra written words, decoration, numbers, logos, simulated UI, visual gradients, shadows, watermarks, or footers. Each exact phrase must appear once. Every node's label has strong contrast. English text only.
 Title text exactly: "Review a stopped task". Below, four workflow checkpoints with distinct small simple line icons for a document, a comment, a settings check and a rerun arrow. Exact node texts in reading order: "Inspect evidence", "Save a reply", "Confirm run setup", "Start a new attempt". Draw exactly three unambiguous arrows pointing right between adjacent nodes only. Put the final node in slightly stronger teal. The new attempt is a rerun, so do not display a success checkmark, approved status, or imply that it passes automatically.
+```
+
+### Working methodology
+
+```text
+Use case: infographic-diagram. Asset type: finished technical methodology diagram for KH Software Factory's public GitHub README. Match the existing documentation palette with a near-white #f7fafc backdrop, very faint cool-gray grid, deep navy sans-serif type, thin bright blue connectors and understated rounded nodes. Use a wide landscape layout about 2:1. Legibility and precise arrows matter more than decoration. Give nodes and their connecting lines generous whitespace. Use only the exact English phrases below, set large and easy to read.
+
+Title: "KH working methodology".
+Upper row: four blue outlined nodes in this exact left-to-right order, each connected to the next by one right-pointing arrow: "Owner accepts intent", "Plan and review", "Build in isolation", "Checks and independent review".
+Lower row: a small outcome tree branches from the bottom of the fourth node, using an unobstructed horizontal distribution line and three downward arrows. Place these three outcome boxes left to right: "Repair within limits" in amber, "Stop with evidence" in slate, "Promote and record" in teal. Draw one separate, clearly visible amber return arrow from the repair box back into the bottom-left edge of "Build in isolation". Give that arrow a clear gutter so it cannot be mistaken for one of the downward branches. The stop and promote outcomes end there. The arrows must connect only the specified nodes. No numbers, badges, logos, icons, cloud/deployment imagery, watermarks, connector labels, footnotes, or additional typography.
 ```
